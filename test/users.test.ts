@@ -1,7 +1,7 @@
 import { after, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { getPool, query } from "../src/lib/db";
-import { isAllowed, parseAllowedEmails } from "../src/lib/allowlist";
+import { isAdminEmail, parseAllowedEmails } from "../src/lib/allowlist";
 import { LEGACY_OWNER_EMAIL, upsertUserByEmail } from "../src/lib/users-db";
 
 const OWNER = "test-owner@whereiwalk.test";
@@ -17,11 +17,11 @@ describe("invite list", () => {
     assert.deepEqual(parseAllowedEmails(" A@x.com, b@y.org\nc@z.net ;; junk "), ["a@x.com", "b@y.org", "c@z.net"]);
   });
   test("empty list allows nobody", () => {
-    assert.equal(isAllowed("a@x.com", parseAllowedEmails("")), false);
-    assert.equal(isAllowed(null, ["a@x.com"]), false);
+    assert.equal(isAdminEmail("a@x.com", parseAllowedEmails("")), false);
+    assert.equal(isAdminEmail(null, ["a@x.com"]), false);
   });
   test("matching is case-insensitive", () => {
-    assert.equal(isAllowed("Owen@Example.com", ["owen@example.com"]), true);
+    assert.equal(isAdminEmail("Owen@Example.com", ["owen@example.com"]), true);
   });
 });
 

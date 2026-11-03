@@ -69,3 +69,12 @@ CREATE TABLE IF NOT EXISTS segment_coverage (
   PRIMARY KEY (user_id, segment_id, activity_id)
 );
 CREATE INDEX IF NOT EXISTS segment_coverage_activity_idx ON segment_coverage (activity_id);
+
+-- People who may sign in, maintained by admins on the Invites page. Admins themselves
+-- are listed in the ALLOWED_EMAILS environment variable and don't need a row here.
+CREATE TABLE IF NOT EXISTS invites (
+  email       text PRIMARY KEY CHECK (email = lower(email)),
+  name        text,
+  invited_by  int REFERENCES users(id) ON DELETE SET NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);

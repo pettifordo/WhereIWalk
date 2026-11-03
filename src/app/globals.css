@@ -109,3 +109,15 @@ input[type="email"] {
   font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text);
 }
+
+.invite-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.invite-form input { flex: 1 1 200px; }
+input[type="text"] {
+  font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+}
+.ok { color: var(--accent); }
+.badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+@media (max-width: 640px) {
+  .page table th:nth-child(4), .page table td:nth-child(4) { display: none; }
+}

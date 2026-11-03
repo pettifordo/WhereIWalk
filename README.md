@@ -17,7 +17,8 @@ See [plan.md](plan.md) for the roadmap and the research behind the design.
 - **Matching** runs in PostGIS: a segment counts as walked when at least 60% of it lies
   within 40 m of one of your tracks (`src/lib/coverage.ts`).
 - **Privacy**: the first and last 200 m of each track are hidden on the map.
-- **Accounts**: sign in with Google (Auth.js). Only emails in `ALLOWED_EMAILS` can sign
+- **Accounts**: sign in with Google (Auth.js). Admins (emails in `ALLOWED_EMAILS`) can
+  invite people on the in-app **Invites** page; only admins and invited people can sign
   in, and each person sees only their own activities and progress.
 
 Stack: Next.js 16 (App Router) · MapLibre GL + OpenFreeMap tiles · Postgres + PostGIS
@@ -64,10 +65,11 @@ the database password never has to leave Vercel.
 3. In Vercel → Project → Settings → Environment Variables (type *Sensitive*, Production):
    - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` — from step 2
    - `AUTH_SECRET` — any long random string, e.g. `openssl rand -base64 32`
-   - `ALLOWED_EMAILS` — e.g. `owen@gmail.com, hilary@gmail.com` (first = owner)
-4. Redeploy. To invite someone later, add their email to `ALLOWED_EMAILS` (and to
-   Google's test users while in Testing) and redeploy. Removing an email locks that
-   person out on their next request.
+   - `ALLOWED_EMAILS` — the admins, e.g. `owen@gmail.com` (first = owner)
+4. Redeploy. Admins then invite everyone else on the **Invites** page in the app (no
+   redeploy needed). While the Google app is in *Testing*, invitees must also be added
+   as Google test users, or publish the app. Removing an invite locks that person out
+   on their next request; "Remove + delete walks" also deletes their data.
 
 Preview deployments get different URLs, so Google sign-in only works on the
 production URL unless you add those URLs to the OAuth client too.

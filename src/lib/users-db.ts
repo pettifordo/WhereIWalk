@@ -1,4 +1,4 @@
-import { allowedEmails } from "./allowlist";
+import { adminEmails } from "./allowlist";
 import { getPool } from "./db";
 
 /** Placeholder account used before Google login existed (single shared login). */
@@ -15,7 +15,7 @@ export async function upsertUserByEmail(email: string, name: string | null): Pro
   try {
     await client.query("BEGIN");
     const existing = await client.query<{ id: number }>(`SELECT id FROM users WHERE email = $1`, [e]);
-    if (!existing.rows[0] && allowedEmails()[0] === e) {
+    if (!existing.rows[0] && adminEmails()[0] === e) {
       const claimed = await client.query<{ id: number }>(
         `UPDATE users SET email = $1, display_name = $2 WHERE email = $3 RETURNING id`,
         [e, name, LEGACY_OWNER_EMAIL],

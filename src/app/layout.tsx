@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
+import { currentUser } from "@/lib/user";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
@@ -10,8 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  const user = session?.user;
+  const user = await currentUser();
 
   return (
     <html lang="en-GB">
@@ -26,6 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/">Map</Link>
                 <Link href="/import">Import</Link>
                 <Link href="/activities">Activities</Link>
+                {user.isAdmin && <Link href="/invites">Invites</Link>}
               </nav>
               <form
                 className="account"
