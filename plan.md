@@ -1,17 +1,19 @@
-# Trail Tracker — Plan
+# WhereIWalk — Plan
 
 A web app that imports your walks/runs/rides, shows them on a map of the UK,
 overlays National Trails and LDWA long-distance paths, and shows how much of
 each trail you have completed.
 
-- **Audience:** friends and family (invite-only). Not expected to grow beyond that,
-  but should be allowed to be used commercially.
+- **Audience:** friends and family (invite-only). Not expected to grow beyond that.
+  Free to use; no plans to charge.
 - **Activity source:** Strava.
 - **Trails:** National Trails + LDWA paths.
 - **Budget:** free tiers only.
-- **Hosting:** Cloudflare (free plan permits commercial use).
+- **Hosting:** Vercel (Hobby) + Neon Postgres with PostGIS. (Changed from Cloudflare
+  on 2026-11-03. Vercel Hobby is, I believe, for non-commercial use, which fits a free
+  friends-and-family app **[verify against Vercel's current terms]**.)
 
-> Status: draft, 2026-11-03. Items marked **[verify]** are unconfirmed and should be
+> Status: Phase 1 built, 2026-11-03. Items marked **[verify]** are unconfirmed and should be
 > checked against a primary source before relying on them.
 
 ---
@@ -63,52 +65,33 @@ Sources: <https://www.ldwa.org.uk/>, <https://ldwa.org.uk/terms.php>
 
 ---
 
-## 2. Architecture (Cloudflare free tier)
+## 2. Architecture (Vercel + Neon, free tiers)
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Front end | Static SPA (Vite + TypeScript, or Next.js static export) on **Cloudflare Pages** | |
-| Map | **MapLibre GL JS** | Open source |
-| Base map tiles | **OpenFreeMap** / OSM-based vector tiles; optional OS Data Hub | OS premium free allowance **[verify]** |
-| API | **Cloudflare Workers** (Hono router) | Free tier CPU time per request is small (~10 ms) **[verify]** |
-| Database | **Cloudflare D1** (SQLite) | No PostGIS — see matching approach below |
-| File storage | **Cloudflare R2** | Raw uploads / trail GeoJSON; free storage allowance **[verify]** |
-| Auth | Invite-only email magic link (Worker + D1), or **Cloudflare Access** (free for small teams **[verify]**) | Access is the least code for friends & family |
-| Static trail data | Pre-processed GeoJSON / PMTiles served from R2 or Pages | |
+| App | **Next.js 16** (App Router) on **Vercel** | Server pages + API route handlers |
+| Map | **MapLibre GL JS** + **OpenFreeMap** vector tiles | No API key; OS Data Hub optional later |
+| Database | **Neon Postgres + PostGIS** | Spatial matching in SQL; use Neon's pooled connection string |
+| Auth (Phase 1) | HTTP Basic auth over the whole site (`src/proxy.ts`) | Single owner account; real accounts in Phase 2 |
 
-### Matching approach (why it runs in the browser)
-D1 has no spatial extensions and free Workers have tight CPU limits, so heavy geometry work
-should not run server-side. Instead:
+### How matching works
+1. **Trail loading (script, once per data update):** download National Trails GeoJSON,
+   store each trail in EPSG:4326 (display) and EPSG:27700 British National Grid (metres),
+   and cut it into ~100 m segments (`trail_segments`, GiST-indexed).
+2. **Import (browser):** parse a Strava export ZIP / GPX / TCX / FIT locally, split tracks
+   at GPS gaps > 500 m, drop tracks outside Great Britain, simplify (Douglas–Peucker, 5 m),
+   and upload only the simplified track + name/type/date in batches of 20.
+3. **Matching (PostGIS):** a segment is covered when ≥ 60% of it lies within 40 m of a
+   track (`src/lib/coverage.ts`). One row per (segment, activity) in `segment_coverage`,
+   so deleting an activity removes exactly its coverage. Re-importing is de-duplicated by
+   a fingerprint (start time + distance).
+4. **Display:** first/last 200 m of each track hidden on the map (privacy).
 
-1. **Offline pre-processing (build script, run once per data update):**
-   - Load trail geometries (National Trails, later LDWA/OSM).
-   - Split each trail into ~100 m segments; give each a stable ID, length and bounding box.
-   - Publish as static files: a trail overview layer (simplified) plus per-trail segment
-     files, and a simple grid index (e.g. 10 km tiles → segment IDs).
-2. **In the browser (Web Worker):**
-   - Parse the Strava export ZIP / GPX / FIT locally.
-   - Simplify each track (e.g. Douglas–Peucker, ~5–10 m tolerance).
-   - Use the grid index to load only nearby segments; mark a segment covered if the track
-     passes within a threshold (start ~40 m, tune) along most of its length (using Turf.js).
-   - Trim the first/last ~300 m of each track for privacy (configurable).
-3. **Upload only results to the Worker:** covered segment IDs + dates + activity metadata,
-   and the simplified (trimmed) track for display. Raw files never leave the device
-   unless the user opts in.
-
-Benefits: works within free limits, private by default, fast feedback.
-
-### Data model (D1)
-- `users` (id, email, display_name, created_at)
-- `activities` (id, user_id, source [export|gpx|fit|strava], external_id, type, start_time,
-  distance_m, simplified_track [encoded polyline], created_at)
-- `trails` (id, name, source, licence, length_m, segment_count)
-- `segment_coverage` (user_id, trail_id, segment_id, first_date, last_date, activity_id)
-  — primary key (user_id, trail_id, segment_id)
-- `invites` (code, created_by, used_by, expires_at)
-
-Trail segment geometry lives in static files, not D1.
-
----
+### Data model
+- `users`, `trails`, `trail_segments(part, seq, start_m, length_m, geom, geom_bng)`
+- `activities(fingerprint, name, activity_type, start_time, distance_m, geom, geom_bng)` —
+  MultiLineString so GPS gaps are never bridged
+- `segment_coverage(user_id, segment_id, activity_id, covered_on)`
 
 ## 3. Phases
 
@@ -116,19 +99,25 @@ Trail segment geometry lives in static files, not D1.
 - [ ] Email LDWA (ldp@ldwa.org.uk) re permission / data.
 - [ ] Download National Trails data (England + Wales); research Scotland.
 - [ ] Ask on the LDWA Facebook thread what people currently use (competitor check).
-- [ ] Confirm Cloudflare free-tier limits (Workers CPU, D1, R2, Access).
+- [ ] Confirm Vercel Hobby and Neon free-tier limits/terms.
 - [ ] Decide whether Strava API sync is worth it given the 7-day-cache question.
 
-### Phase 1 — MVP (just you)
-- [ ] Trail pre-processing script → static segment files + index.
-- [ ] Map page: National Trails layer + your tracks.
-- [ ] Import: Strava bulk export ZIP + GPX/FIT, processed in the browser.
-- [ ] Coverage matching + per-trail % complete, covered vs missing sections.
-- [ ] Per-trail page: distance done/remaining, gaps, contributing activities.
-- [ ] Deploy to Cloudflare Pages + Worker + D1.
+### Phase 1 — MVP (just you) — built 2026-11-03
+- [x] Trail fetch/load scripts → 14 English National Trails, ~47k segments.
+- [x] Map page: National Trails layer, walked sections, your tracks; per-trail % list.
+- [x] Import: Strava bulk export ZIP + GPX/TCX/FIT (incl. .gz), processed in the browser.
+- [x] Coverage matching + per-trail % complete, covered vs missing sections.
+- [x] Per-trail page: distance done/remaining, gaps (with km ranges), contributing activities.
+- [x] Activities page with delete.
+- [x] Tests: parsing (GPX, FIT, Strava ZIP, CSV) + PostGIS matching integration tests.
+- [ ] Deploy to Vercel + Neon (needs your accounts — see README).
+- [ ] Try it with a real Strava export and tune the 40 m / 60% thresholds.
+- [ ] Wales-only trails (Glyndŵr's Way, Pembrokeshire Coast Path) — NRW download timed
+      out from the build environment; retry. King Charles III England Coast Path is a
+      separate Natural England dataset — consider adding.
 
 ### Phase 2 — Friends & family
-- [ ] Invite-only login (Cloudflare Access or magic link).
+- [ ] Invite-only login (e.g. email magic link or Auth.js) with per-user data.
 - [ ] Per-user data; optional share link for progress (upload-sourced data only).
 - [ ] Add LDWA routes (if permitted) or OSM long-distance routes.
 - [ ] Re-import / delete activity; delete account (all data).
@@ -146,10 +135,10 @@ Trail segment geometry lives in static files, not D1.
 2. **LDWA permission** — may be refused; OSM fallback.
 3. **Matching accuracy** — GPS drift, trail diversions, parallel paths. Needs a tunable
    threshold and a manual "mark section done / not done" override.
-4. **Free-tier limits** — keep processing client-side; store only simplified tracks.
+4. **Free-tier limits** — parse client-side; store only simplified tracks; Neon free
+   storage and Vercel function duration limits **[verify current figures]**.
 5. **Privacy** — tracks reveal home locations; trim start/end by default, private by default.
 
 ## 5. Open questions
 - Which activity types count (walk/hike only, or runs and rides too)?
 - Mobile-first or desktop-first?
-- Name for the app?

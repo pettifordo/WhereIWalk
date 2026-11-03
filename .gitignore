@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+.env
+.env*.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+# Downloaded trail data (re-fetch with `npm run trails:fetch`)
+data/*.geojson
+
+# Copied from node_modules on install/build
+public/maplibre/
