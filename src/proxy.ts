@@ -1,45 +1,24 @@
-import { NextResponse, type NextRequest } from "next/server";
+import NextAuth from "next-auth";
+import { NextResponse } from "next/server";
+import authConfig from "./auth.config";
+import { isAllowed } from "./lib/allowlist";
+
+const { auth } = NextAuth(authConfig);
 
 /**
- * Phase 1 login: HTTP Basic auth over the whole site, using APP_USERNAME and
- * APP_PASSWORD. If neither is set the site is open; that is only allowed
- * outside production, so a deploy without them is locked rather than public.
+ * Everything except the sign-in page and Auth.js's own routes needs a signed-in
+ * user. Pages redirect to /signin; API calls get 401.
  */
-export function proxy(request: NextRequest) {
-  const user = process.env.APP_USERNAME ?? "";
-  const pass = process.env.APP_PASSWORD ?? "";
-  if (!user && !pass) {
-    if (process.env.NODE_ENV !== "production") return NextResponse.next();
-    return new NextResponse("Login is not configured: set APP_USERNAME and APP_PASSWORD.", { status: 503 });
+export const proxy = auth((req) => {
+  // Re-check the invite list on every request, so removing an email locks them out at once.
+  if (req.auth && isAllowed(req.auth.user?.email)) return NextResponse.next();
+  const { pathname } = req.nextUrl;
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
-
-  const header = request.headers.get("authorization") ?? "";
-  if (header.startsWith("Basic ")) {
-    try {
-      const decoded = atob(header.slice(6));
-      const i = decoded.indexOf(":");
-      if (i >= 0 && safeEqual(decoded.slice(0, i), user) && safeEqual(decoded.slice(i + 1), pass)) {
-        return NextResponse.next();
-      }
-    } catch {
-      // malformed header: fall through to 401
-    }
-  }
-  return new NextResponse("Login required", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="WhereIWalk", charset="UTF-8"' },
-  });
-}
-
-/** Constant-time string comparison. */
-function safeEqual(a: string, b: string): boolean {
-  const ea = new TextEncoder().encode(a);
-  const eb = new TextEncoder().encode(b);
-  let diff = ea.length ^ eb.length;
-  for (let i = 0; i < Math.max(ea.length, eb.length); i++) diff |= (ea[i] ?? 0) ^ (eb[i] ?? 0);
-  return diff === 0;
-}
+  return NextResponse.redirect(new URL("/signin", req.nextUrl));
+});
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!signin|api/auth|_next/static|_next/image|maplibre/|favicon.ico).*)"],
 };

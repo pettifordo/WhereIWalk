@@ -98,3 +98,14 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .gap-list li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .attribution { font-size: 0.75rem; color: var(--muted); margin-top: 16px; }
 .error { color: var(--danger); }
+
+.account { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.account button { padding: 4px 10px; }
+@media (max-width: 520px) {
+  .header { flex-wrap: wrap; gap: 10px 16px; }
+  .account span { display: none; }
+}
+input[type="email"] {
+  font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+}

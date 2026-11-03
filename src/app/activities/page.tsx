@@ -2,12 +2,12 @@ import Link from "next/link";
 import { connection } from "next/server";
 import DeleteActivityButton from "@/components/DeleteActivityButton";
 import { listActivities } from "@/lib/activities";
-import { getCurrentUserId } from "@/lib/user";
+import { requireUserId } from "@/lib/user";
 import { date, km } from "@/lib/format";
 
 export default async function ActivitiesPage() {
   await connection();
-  const activities = await listActivities(await getCurrentUserId());
+  const activities = await listActivities(await requireUserId());
   return (
     <main className="page">
       <h1>Activities ({activities.length})</h1>

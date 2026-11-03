@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { coveredOverview, tracksOverview, trailsOverview } from "@/lib/queries";
-import { getCurrentUserId } from "@/lib/user";
+import { apiUserId } from "@/lib/user";
 
 export async function GET() {
-  const userId = await getCurrentUserId();
+  const userId = await apiUserId();
+  if (userId === null) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const [trails, covered, tracks] = await Promise.all([
     trailsOverview(),
     coveredOverview(userId),

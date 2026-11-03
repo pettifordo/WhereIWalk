@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import TrailExplorer from "@/components/TrailExplorer";
 import { trailDetail } from "@/lib/queries";
-import { getCurrentUserId } from "@/lib/user";
+import { requireUserId } from "@/lib/user";
 import { date, km, miles, pct } from "@/lib/format";
 
 export default async function TrailPage({ params }: { params: Promise<{ slug: string }> }) {
   await connection();
   const { slug } = await params;
-  const detail = await trailDetail(await getCurrentUserId(), slug);
+  const detail = await trailDetail(await requireUserId(), slug);
   if (!detail) notFound();
   const t = detail.trail;
 

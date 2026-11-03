@@ -2,12 +2,12 @@ import Link from "next/link";
 import { connection } from "next/server";
 import OverviewMap from "@/components/OverviewMap";
 import { attributions, trailSummaries } from "@/lib/queries";
-import { getCurrentUserId } from "@/lib/user";
+import { requireUserId } from "@/lib/user";
 import { km, pct } from "@/lib/format";
 
 export default async function Home() {
   await connection();
-  const userId = await getCurrentUserId();
+  const userId = await requireUserId();
   const [trails, attrib] = await Promise.all([trailSummaries(userId), attributions()]);
   const sorted = [...trails].sort((a, b) => b.covered_m / b.length_m - a.covered_m / a.length_m || a.name.localeCompare(b.name));
   const totalDone = trails.reduce((s, t) => s + t.covered_m, 0);

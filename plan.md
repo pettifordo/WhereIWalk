@@ -72,7 +72,7 @@ Sources: <https://www.ldwa.org.uk/>, <https://ldwa.org.uk/terms.php>
 | App | **Next.js 16** (App Router) on **Vercel** | Server pages + API route handlers |
 | Map | **MapLibre GL JS** + **OpenFreeMap** vector tiles | No API key; OS Data Hub optional later |
 | Database | **Neon Postgres + PostGIS** | Spatial matching in SQL; use Neon's pooled connection string |
-| Auth (Phase 1) | HTTP Basic auth over the whole site (`src/proxy.ts`) | Single owner account; real accounts in Phase 2 |
+| Auth | **Auth.js** (next-auth v5) with **Google** sign-in, JWT sessions | Invite list in `ALLOWED_EMAILS`; per-person data |
 
 ### How matching works
 1. **Trail loading (script, once per data update):** download National Trails GeoJSON,
@@ -117,7 +117,8 @@ Sources: <https://www.ldwa.org.uk/>, <https://ldwa.org.uk/terms.php>
       separate Natural England dataset — consider adding.
 
 ### Phase 2 — Friends & family
-- [ ] Invite-only login (e.g. email magic link or Auth.js) with per-user data.
+- [x] Invite-only Google login with per-person data (built 2026-11-03; replaced the
+      shared username/password).
 - [ ] Per-user data; optional share link for progress (upload-sourced data only).
 - [ ] Add LDWA routes (if permitted) or OSM long-distance routes.
 - [ ] Re-import / delete activity; delete account (all data).

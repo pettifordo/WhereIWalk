@@ -17,6 +17,8 @@ See [plan.md](plan.md) for the roadmap and the research behind the design.
 - **Matching** runs in PostGIS: a segment counts as walked when at least 60% of it lies
   within 40 m of one of your tracks (`src/lib/coverage.ts`).
 - **Privacy**: the first and last 200 m of each track are hidden on the map.
+- **Accounts**: sign in with Google (Auth.js). Only emails in `ALLOWED_EMAILS` can sign
+  in, and each person sees only their own activities and progress.
 
 Stack: Next.js 16 (App Router) · MapLibre GL + OpenFreeMap tiles · Postgres + PostGIS
 (Neon) · hosted on Vercel.
@@ -35,7 +37,9 @@ npm run dev                     # http://localhost:3000
 npm test                        # unit + database integration tests
 ```
 
-If `APP_USERNAME`/`APP_PASSWORD` are empty, login is disabled in development.
+To sign in locally without Google, set `AUTH_DEV_LOGIN=1` (see `.env.example`); the
+sign-in page then shows a test login for any `ALLOWED_EMAILS` address. It is always
+disabled on Vercel.
 
 ## Deploying (Vercel + Neon, free tiers)
 
@@ -47,9 +51,26 @@ schema (including `CREATE EXTENSION postgis`) and, only if the database has no t
 yet, downloads and loads them. So a new database is set up by its first deploy, and
 the database password never has to leave Vercel.
 
-Also set, under Project → Settings → Environment Variables (type *Sensitive*):
-`APP_USERNAME` and `APP_PASSWORD`. Without them the site answers 503
-("Login is not configured") so it can't accidentally go public.
+### Google sign-in setup
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) create (or pick) a
+   project, then **APIs & Services → OAuth consent screen**: user type *External*,
+   app name *WhereIWalk*, your email as support/developer contact. While the app is in
+   *Testing* status, add each person's Google email under **Test users** (or publish it).
+2. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type
+   *Web application*. Authorised redirect URIs:
+   - `https://whereiwalk.vercel.app/api/auth/callback/google`
+   - `http://localhost:3000/api/auth/callback/google` (optional, local dev)
+3. In Vercel → Project → Settings → Environment Variables (type *Sensitive*, Production):
+   - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` — from step 2
+   - `AUTH_SECRET` — any long random string, e.g. `openssl rand -base64 32`
+   - `ALLOWED_EMAILS` — e.g. `owen@gmail.com, hilary@gmail.com` (first = owner)
+4. Redeploy. To invite someone later, add their email to `ALLOWED_EMAILS` (and to
+   Google's test users while in Testing) and redeploy. Removing an email locks that
+   person out on their next request.
+
+Preview deployments get different URLs, so Google sign-in only works on the
+production URL unless you add those URLs to the OAuth client too.
 
 To refresh trail data later (e.g. after Natural England updates it), run
 `npm run trails:fetch && npm run trails:load` with `DATABASE_URL` pointing at the

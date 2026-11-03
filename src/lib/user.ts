@@ -1,21 +1,23 @@
-import { query } from "./db";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { isAllowed } from "./allowlist";
 
-/**
- * Phase 1 is single-user: everyone who gets past the site login is the owner.
- * Phase 2 replaces this with real per-user accounts.
- */
-const OWNER_EMAIL = "owner@whereiwalk.local";
+export { upsertUserByEmail, LEGACY_OWNER_EMAIL } from "./users-db";
 
-let cached: number | undefined;
-
-export async function getCurrentUserId(): Promise<number> {
-  if (cached !== undefined) return cached;
-  const rows = await query<{ id: number }>(
-    `INSERT INTO users (email, display_name) VALUES ($1, 'Owner')
-     ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
-     RETURNING id`,
-    [OWNER_EMAIL],
-  );
-  cached = rows[0].id;
-  return cached;
+/** The signed-in user's id, or null. */
+export async function currentUserId(): Promise<number | null> {
+  const session = await auth();
+  if (!isAllowed(session?.user?.email)) return null;
+  const id = Number(session?.user?.id);
+  return Number.isInteger(id) && id > 0 ? id : null;
 }
+
+/** For pages: the signed-in user's id, or send them to the sign-in page. */
+export async function requireUserId(): Promise<number> {
+  const id = await currentUserId();
+  if (id === null) redirect("/signin");
+  return id;
+}
+
+/** For API routes: the signed-in user's id, or null (caller returns 401). */
+export const apiUserId = currentUserId;
