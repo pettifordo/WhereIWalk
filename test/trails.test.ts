@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { groupLines, linesOf } from "../src/lib/trail-sources";
-import { groupTrails } from "../src/lib/trail-groups";
+import { groupTrails, onlyWalked, seriesOpenByDefault, shownCount } from "../src/lib/trail-groups";
 import type { TrailSummary } from "../src/lib/queries";
 
 describe("trail sources", () => {
@@ -45,12 +45,33 @@ describe("trail grouping", () => {
     assert.equal(coast.count, 2, "Wales Coast Path + one series");
     assert.equal(coast.series[0].length_m, 400);
     assert.equal(coast.series[0].covered_m, 50);
-    assert.deepEqual(coast.series[0].trails.map((x) => x.name), ["A stretch", "B stretch"]);
+    assert.deepEqual(coast.series[0].trails.map((x) => x.name), ["B stretch", "A stretch"], "walked stretches first");
     assert.equal(coast.started, 1);
     assert.equal(coast.length_m, 1800);
   });
 
   test("empty categories are left out", () => {
     assert.deepEqual(groupTrails([t(1, "X", "national-trail", null, 1, 0)]).map((g) => g.category), ["national-trail"]);
+  });
+
+  test("walked-only view keeps progress, hides untouched routes, keeps section totals", () => {
+    const all = groupTrails([
+      t(1, "Pennine Way", "national-trail", null, 400, 40),
+      t(2, "Cotswold Way", "national-trail", null, 160, 0),
+      t(3, "Wales Coast Path", "coast-path", null, 1400, 0),
+      t(4, "B stretch", "coast-path", "England Coast Path", 100, 50),
+      t(5, "A stretch", "coast-path", "England Coast Path", 300, 0),
+      t(6, "C stretch", "coast-path", "Other Coast Path", 300, 0),
+    ]);
+    const w = onlyWalked(all);
+    assert.deepEqual(w[0].trails.map((x) => x.name), ["Pennine Way"]);
+    assert.equal(w[0].length_m, 560, "totals unchanged");
+    assert.equal(w[1].trails.length, 0, "Wales Coast Path hidden");
+    assert.deepEqual(w[1].series.map((x) => x.name), ["England Coast Path"], "unwalked series hidden");
+    assert.deepEqual(w[1].series[0].trails.map((x) => x.name), ["B stretch"], "only walked stretches");
+    assert.equal(w[1].series[0].length_m, 400, "series total still whole route");
+    assert.equal(shownCount(w[1]), 1);
+    assert.equal(seriesOpenByDefault(all[1].series.find((x) => x.name === "England Coast Path")!), true);
+    assert.equal(seriesOpenByDefault(all[1].series.find((x) => x.name === "Other Coast Path")!), false);
   });
 });

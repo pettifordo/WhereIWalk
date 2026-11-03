@@ -42,7 +42,8 @@ export function groupTrails(trails: TrailSummary[]): CategoryGroup[] {
       const inCat = trails.filter((t) => t.category === category);
       const seriesNames = [...new Set(inCat.filter((t) => t.series).map((t) => t.series!))];
       const series = seriesNames.map((name) => {
-        const ts = inCat.filter((t) => t.series === name).sort((a, b) => a.name.localeCompare(b.name));
+        // Walked stretches first (most complete first), then the rest alphabetically.
+        const ts = inCat.filter((t) => t.series === name).sort(byProgress);
         return {
           name,
           trails: ts,
@@ -64,3 +65,23 @@ export function groupTrails(trails: TrailSummary[]): CategoryGroup[] {
     })
     .filter((g) => g.count > 0);
 }
+
+/** A series group's stretch list opens automatically once any stretch has been walked. */
+export const seriesOpenByDefault = (s: SeriesGroup) => s.covered_m > 0;
+
+/**
+ * "Walked only" view: keep only trails (and series stretches) with some progress.
+ * Category totals are left unchanged so the summary still describes the whole section.
+ */
+export function onlyWalked(groups: CategoryGroup[]): CategoryGroup[] {
+  return groups.map((g) => ({
+    ...g,
+    trails: g.trails.filter((t) => t.covered_m > 0),
+    series: g.series
+      .filter((s) => s.covered_m > 0)
+      .map((s) => ({ ...s, trails: s.trails.filter((t) => t.covered_m > 0) })),
+  }));
+}
+
+/** Rows shown in a group: stand-alone trails plus series. */
+export const shownCount = (g: CategoryGroup) => g.trails.length + g.series.length;

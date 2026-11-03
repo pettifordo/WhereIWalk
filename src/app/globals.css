@@ -126,7 +126,6 @@ input[type="text"] {
 .trail-group h2 { margin-top: 12px; font-size: 1.2rem; }
 details.series > summary { list-style: none; cursor: pointer; }
 details.series > summary::-webkit-details-marker { display: none; }
-details.series[open] > summary .muted.small:last-child { visibility: hidden; }
 .trail-list.nested { margin: 8px 0 0 12px; padding-left: 10px; border-left: 3px solid var(--accent-soft); }
 .trail-list.nested li { padding: 7px 0; }
 .prose { line-height: 1.6; }
@@ -135,3 +134,25 @@ details.series[open] > summary .muted.small:last-child { visibility: hidden; }
 .chip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
 .prose h2 { font-size: 1.3rem; }
 .prose h3 { font-size: 1.05rem; margin: 18px 0 6px; }
+
+/* Sidebar toolbar: jump links + All/Walked switch, stays visible while scrolling the list */
+.sidebar { padding-top: 0; }
+.sidebar-toolbar {
+  position: sticky; top: 0; z-index: 2; background: var(--surface);
+  margin: 0 -16px 8px; padding: 12px 16px 10px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.jump-links { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.92rem; }
+.jump-links a { text-decoration: none; font-weight: 600; }
+.jump-links a:hover { text-decoration: underline; }
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; align-self: flex-start; }
+.segmented a { padding: 5px 12px; font-size: 0.88rem; text-decoration: none; color: var(--muted); }
+.segmented a + a { border-left: 1px solid var(--border); }
+.segmented a[aria-current="true"] { background: var(--accent); color: #fff; }
+.trail-group { scroll-margin-top: 96px; }
+.series-toggle::after { content: " — show"; }
+details.series[open] .series-toggle::after { content: " — hide"; }
+@media (max-width: 760px) {
+  .sidebar-toolbar { position: static; }
+  .trail-group { scroll-margin-top: 8px; }
+}
