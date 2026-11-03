@@ -18,7 +18,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <header className="header">
           <Link href="/" className="brand">
-            Where<span>I</span>Walk
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icon.svg" alt="" width={24} height={24} />
+            <span>Where<span className="brand-i">I</span>Walk</span>
           </Link>
           {user && (
             <>

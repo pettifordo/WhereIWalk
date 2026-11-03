@@ -2,7 +2,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { getPool, query } from "../src/lib/db";
 import { normaliseEmail } from "../src/lib/allowlist";
-import { addInvite, canSignIn, listInvites, removeInvite } from "../src/lib/invites";
+import { addInvite, canSignIn, deleteRemovedUser, listInvites, listRemoved, removeInvite } from "../src/lib/invites";
 import { upsertUserByEmail } from "../src/lib/users-db";
 
 const ADMIN = "inv-admin@whereiwalk.test";
@@ -58,5 +58,30 @@ describe("invites", () => {
     await addInvite(GUEST, null, adminId);
     await removeInvite(GUEST, true);
     assert.equal((await query(`SELECT 1 FROM users WHERE id = $1`, [guestId])).length, 0, "account deleted");
+  });
+
+  test("removed people are listed with their walks, and can be deleted only once removed", async () => {
+    await addInvite(GUEST, "Guest", adminId);
+    const guestId = await upsertUserByEmail(GUEST, "Guest");
+    await query(
+      `INSERT INTO activities (user_id, source, fingerprint, start_time, distance_m, geom, geom_bng)
+       SELECT $1, 'gpx', 'inv-fp', '2026-06-01T10:00:00Z', 1000, g, ST_Transform(g, 27700)
+       FROM (SELECT ST_SetSRID(ST_GeomFromText('MULTILINESTRING((-1.8 53.36, -1.79 53.36))'), 4326) g) x`,
+      [guestId],
+    );
+    assert.equal((await listRemoved()).some((r) => r.email === GUEST), false, "invited people aren't 'removed'");
+    assert.equal(await deleteRemovedUser(GUEST), false, "can't delete while still invited");
+    assert.equal(await deleteRemovedUser(ADMIN), false, "can't delete an admin");
+
+    await removeInvite(GUEST, false);
+    const r = (await listRemoved()).find((x) => x.email === GUEST)!;
+    assert.equal(r.activities, 1);
+    assert.equal(r.name, "Guest");
+    assert.ok(r.last_walk?.startsWith("2026-06-01"));
+    assert.equal((await listRemoved()).some((x) => x.email === ADMIN), false, "admins never listed");
+
+    assert.equal(await deleteRemovedUser(GUEST), true);
+    assert.equal((await listRemoved()).some((x) => x.email === GUEST), false);
+    assert.equal((await query(`SELECT 1 FROM activities WHERE user_id = $1`, [guestId])).length, 0);
   });
 });

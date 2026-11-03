@@ -58,3 +58,44 @@ export async function removeInvite(email: string, deleteData: boolean): Promise<
   await query(`DELETE FROM invites WHERE email = $1`, [e]);
   if (deleteData) await query(`DELETE FROM users WHERE email = $1`, [e]);
 }
+
+export interface RemovedRow {
+  email: string;
+  name: string | null;
+  activities: number;
+  last_walk: string | null;
+}
+
+/** People who have an account (they signed in before) but are no longer admins or invited. */
+export async function listRemoved(): Promise<RemovedRow[]> {
+  return query<RemovedRow>(
+    `
+    SELECT u.email, u.display_name AS name,
+           count(a.id)::int AS activities,
+           max(a.start_time)::text AS last_walk
+    FROM users u
+    LEFT JOIN activities a ON a.user_id = u.id
+    WHERE NOT (u.email = ANY($1::text[]))
+      AND NOT EXISTS (SELECT 1 FROM invites i WHERE i.email = u.email)
+    GROUP BY u.id
+    ORDER BY u.email
+    `,
+    [adminEmails()],
+  );
+}
+
+/**
+ * Permanently delete a removed person's account, activities and progress.
+ * Refuses for admins and for anyone currently invited (remove the invite first).
+ */
+export async function deleteRemovedUser(email: string): Promise<boolean> {
+  const e = email.trim().toLowerCase();
+  if (isAdminEmail(e)) return false;
+  const rows = await query(
+    `DELETE FROM users u WHERE u.email = $1
+       AND NOT EXISTS (SELECT 1 FROM invites i WHERE i.email = u.email)
+     RETURNING u.id`,
+    [e],
+  );
+  return rows.length > 0;
+}

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import ConfirmSubmit from "@/components/ConfirmSubmit";
-import { addInvite, listInvites, removeInvite } from "@/lib/invites";
+import { addInvite, deleteRemovedUser, listInvites, listRemoved, removeInvite } from "@/lib/invites";
 import { requireAdmin } from "@/lib/user";
 import { date } from "@/lib/format";
 
@@ -25,15 +25,30 @@ async function remove(fd: FormData) {
   redirect(`/invites?removed=${encodeURIComponent(email)}`);
 }
 
+async function reinvite(fd: FormData) {
+  "use server";
+  const admin = await requireAdmin();
+  const email = await addInvite(String(fd.get("email") ?? ""), null, admin.id);
+  redirect(`/invites?added=${encodeURIComponent(email)}`);
+}
+
+async function deleteData(fd: FormData) {
+  "use server";
+  await requireAdmin();
+  const email = String(fd.get("email") ?? "");
+  const ok = await deleteRemovedUser(email);
+  redirect(ok ? `/invites?deleted=${encodeURIComponent(email)}` : `/invites?error=${encodeURIComponent("Couldn't delete that account.")}`);
+}
+
 export default async function InvitesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; added?: string; removed?: string }>;
+  searchParams: Promise<{ error?: string; added?: string; removed?: string; deleted?: string }>;
 }) {
   await connection();
   const me = await requireAdmin();
-  const { error, added, removed } = await searchParams;
-  const people = await listInvites();
+  const { error, added, removed, deleted } = await searchParams;
+  const [people, removedPeople] = await Promise.all([listInvites(), listRemoved()]);
 
   return (
     <main className="page" style={{ maxWidth: 860 }}>
@@ -49,7 +64,8 @@ export default async function InvitesPage({
       </form>
       {error && <p className="error">{error}</p>}
       {added && <p className="ok">Invited {added}. Send them the link to this site so they can sign in with Google.</p>}
-      {removed && <p className="ok">Removed {removed}.</p>}
+      {removed && <p className="ok">Removed {removed}. Their walks are kept under &ldquo;Removed people&rdquo; below.</p>}
+      {deleted && <p className="ok">Deleted {deleted} and all their walks.</p>}
 
       <table style={{ marginTop: 16 }}>
         <thead>
@@ -93,6 +109,48 @@ export default async function InvitesPage({
           ))}
         </tbody>
       </table>
+
+      {removedPeople.length > 0 && (
+        <>
+          <h2 style={{ marginTop: 28 }}>Removed people ({removedPeople.length})</h2>
+          <p className="muted small">
+            They can&apos;t sign in, but their walks are still stored. Re-invite them to give access back, or delete
+            their data for good.
+          </p>
+          <table>
+            <thead>
+              <tr><th>Person</th><th className="num">Walks</th><th>Last walk</th><th /></tr>
+            </thead>
+            <tbody>
+              {removedPeople.map((p) => (
+                <tr key={p.email}>
+                  <td>
+                    {p.name && <div>{p.name}</div>}
+                    <div className={p.name ? "muted small" : ""}>{p.email}</div>
+                  </td>
+                  <td className="num">{p.activities}</td>
+                  <td className="muted small">{date(p.last_walk)}</td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    <form action={reinvite} style={{ display: "inline" }}>
+                      <input type="hidden" name="email" value={p.email} />
+                      <button type="submit">Re-invite</button>
+                    </form>{" "}
+                    <form action={deleteData} style={{ display: "inline" }}>
+                      <input type="hidden" name="email" value={p.email} />
+                      <ConfirmSubmit
+                        className="danger"
+                        message={`Permanently delete ${p.email}'s account and all ${p.activities} walks? This can't be undone.`}
+                      >
+                        Delete data
+                      </ConfirmSubmit>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
       <p className="muted small" style={{ marginTop: 20 }}>
         Admins are set by the <code>ALLOWED_EMAILS</code> setting in Vercel and can&apos;t be removed here. While the
