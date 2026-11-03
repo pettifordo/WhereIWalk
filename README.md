@@ -39,19 +39,21 @@ If `APP_USERNAME`/`APP_PASSWORD` are empty, login is disabled in development.
 
 ## Deploying (Vercel + Neon, free tiers)
 
-1. **Neon**: create a project. In the SQL editor run `CREATE EXTENSION postgis;`
-   (the migration also does this). Copy the **pooled** connection string.
-2. **Load data into Neon** from your machine:
-   ```bash
-   DATABASE_URL='<neon pooled url>' npm run db:migrate
-   DATABASE_URL='<neon pooled url>' npm run trails:fetch
-   DATABASE_URL='<neon pooled url>' npm run trails:load
-   ```
-3. **Vercel**: import the GitHub repo as a new project (framework: Next.js). Add
-   environment variables `DATABASE_URL`, `APP_USERNAME`, `APP_PASSWORD`, then deploy.
+The Vercel project `whereiwalk` is linked to this repo, with a Neon database
+attached through Vercel's Storage tab (which sets `DATABASE_URL`).
 
-In production the site refuses to serve (HTTP 503) unless `APP_USERNAME` and
-`APP_PASSWORD` are set, so it can't accidentally go public.
+Every Vercel build runs `npm run db:setup` first (see `vercel.json`). It applies the
+schema (including `CREATE EXTENSION postgis`) and, only if the database has no trails
+yet, downloads and loads them. So a new database is set up by its first deploy, and
+the database password never has to leave Vercel.
+
+Also set, under Project → Settings → Environment Variables (type *Sensitive*):
+`APP_USERNAME` and `APP_PASSWORD`. Without them the site answers 503
+("Login is not configured") so it can't accidentally go public.
+
+To refresh trail data later (e.g. after Natural England updates it), run
+`npm run trails:fetch && npm run trails:load` with `DATABASE_URL` pointing at the
+database. This re-cuts segments and recomputes everyone's coverage.
 
 ## Data and licences
 
