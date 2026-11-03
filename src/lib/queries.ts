@@ -1,9 +1,12 @@
 import { query } from "./db";
+import type { TrailCategory } from "./trails";
 
 export interface TrailSummary {
   id: number;
   slug: string;
   name: string;
+  category: TrailCategory;
+  series: string | null;
   length_m: number;
   covered_m: number;
   first_walked: string | null;
@@ -20,7 +23,7 @@ export async function trailSummaries(userId: number): Promise<TrailSummary[]> {
       WHERE c.user_id = $1
       GROUP BY s.trail_id, s.id, s.length_m
     )
-    SELECT t.id, t.slug, t.name, t.length_m,
+    SELECT t.id, t.slug, t.name, t.category, t.series, t.length_m,
            COALESCE(sum(cv.length_m), 0)::float8 AS covered_m,
            min(cv.first_on)::text AS first_walked,
            max(cv.last_on)::text AS last_walked
@@ -40,7 +43,7 @@ export async function trailsOverview(): Promise<FeatureCollection> {
     `
     SELECT json_build_object('type', 'FeatureCollection', 'features', COALESCE(json_agg(json_build_object(
       'type', 'Feature',
-      'properties', json_build_object('id', id, 'slug', slug, 'name', name),
+      'properties', json_build_object('id', id, 'slug', slug, 'name', name, 'category', category),
       'geometry', ST_AsGeoJSON(ST_Transform(ST_SimplifyPreserveTopology(geom_bng, 25), 4326), 5)::json
     )), '[]'::json)) AS fc
     FROM trails

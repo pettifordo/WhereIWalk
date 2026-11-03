@@ -13,7 +13,6 @@
     "test": "node --env-file-if-exists=.env --import tsx --test test/*.test.ts",
     "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
     "db:setup": "tsx --env-file-if-exists=.env scripts/setup-db.ts",
-    "trails:fetch": "tsx --env-file-if-exists=.env scripts/fetch-trails.ts",
     "trails:load": "tsx --env-file-if-exists=.env scripts/load-trails.ts",
     "postinstall": "node scripts/copy-maplibre-worker.mjs"
   },

@@ -112,9 +112,9 @@ Sources: <https://www.ldwa.org.uk/>, <https://ldwa.org.uk/terms.php>
 - [x] Tests: parsing (GPX, FIT, Strava ZIP, CSV) + PostGIS matching integration tests.
 - [ ] Deploy to Vercel + Neon (needs your accounts — see README).
 - [ ] Try it with a real Strava export and tune the 40 m / 60% thresholds.
-- [ ] Wales-only trails (Glyndŵr's Way, Pembrokeshire Coast Path) — NRW download timed
-      out from the build environment; retry. King Charles III England Coast Path is a
-      separate Natural England dataset — consider adding.
+- [x] Wales-only National Trails (Glyndŵr's Way, Pembrokeshire Coast Path), Wales Coast
+      Path, King Charles III England Coast Path (66 stretches); trail list grouped by type.
+- [x] "How it works" page; step-by-step Strava export guide on the Import page.
 
 ### Phase 2 — Friends & family
 - [x] Invite-only Google login with per-person data (built 2026-11-03; replaced the

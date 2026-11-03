@@ -78,3 +78,21 @@ CREATE TABLE IF NOT EXISTS invites (
   invited_by  int REFERENCES users(id) ON DELETE SET NULL,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- Trail grouping (added with the Wales and coast path datasets).
+--   category: 'national-trail' | 'coast-path'
+--   series:   a parent route for trails published in stretches, e.g. the
+--             King Charles III England Coast Path; NULL for stand-alone trails
+--   source_id: which entry in src/lib/trail-sources.ts the trail came from
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS category text NOT NULL DEFAULT 'national-trail';
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS series text;
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS source_id text;
+UPDATE trails SET source_id = 'national-trails-england' WHERE source_id IS NULL AND source = 'natural-england';
+
+-- Which version of each trail source has been loaded, so new or updated sources
+-- are loaded automatically by db:setup on the next deploy.
+CREATE TABLE IF NOT EXISTS trail_source_loads (
+  source_id  text PRIMARY KEY,
+  version    int NOT NULL,
+  loaded_at  timestamptz NOT NULL DEFAULT now()
+);

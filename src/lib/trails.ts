@@ -13,13 +13,22 @@ export function slugify(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
+export type TrailCategory = "national-trail" | "coast-path";
+
 export interface TrailInput {
   name: string;
+  slug?: string;
+  category: TrailCategory;
+  /** Parent route when published in stretches, e.g. "King Charles III England Coast Path". */
+  series?: string | null;
+  sourceId: string;
   source: string;
   licence: string;
   attribution: string;
-  /** GeoJSON LineString or MultiLineString geometry in EPSG:4326 */
+  /** GeoJSON LineString or MultiLineString geometry */
   geometry: unknown;
+  /** Coordinate system of `geometry`: 4326 (lon/lat) or 27700 (British National Grid). */
+  srid?: 4326 | 27700;
 }
 
 /** Insert or update a trail and return its id. */
@@ -27,19 +36,23 @@ export async function upsertTrail(db: Queryable, t: TrailInput): Promise<number>
   const res = await db.query<{ id: number }>(
     `
     WITH g AS (
-      SELECT ST_Multi(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON($5), 4326))) AS geom
+      SELECT ST_Multi(ST_Force2D(ST_SetSRID(ST_GeomFromGeoJSON($5), $7::int))) AS raw
     ), b AS (
-      SELECT geom, ST_Transform(geom, 27700) AS geom_bng FROM g
+      SELECT ST_Transform(raw, 4326) AS geom, ST_Transform(raw, 27700) AS geom_bng FROM g
     )
-    INSERT INTO trails (slug, name, source, licence, attribution, length_m, geom, geom_bng)
-    SELECT $1, $2, $3, $4, $6, ST_Length(geom_bng), geom, geom_bng FROM b
+    INSERT INTO trails (slug, name, source, licence, attribution, length_m, geom, geom_bng, category, series, source_id)
+    SELECT $1, $2, $3, $4, $6, ST_Length(geom_bng), geom, geom_bng, $8, $9, $10 FROM b
     ON CONFLICT (slug) DO UPDATE SET
       name = EXCLUDED.name, source = EXCLUDED.source, licence = EXCLUDED.licence,
       attribution = EXCLUDED.attribution, length_m = EXCLUDED.length_m,
-      geom = EXCLUDED.geom, geom_bng = EXCLUDED.geom_bng, updated_at = now()
+      geom = EXCLUDED.geom, geom_bng = EXCLUDED.geom_bng, category = EXCLUDED.category,
+      series = EXCLUDED.series, source_id = EXCLUDED.source_id, updated_at = now()
     RETURNING id
     `,
-    [slugify(t.name), t.name, t.source, t.licence, JSON.stringify(t.geometry), t.attribution],
+    [
+      t.slug ?? slugify(t.name), t.name, t.source, t.licence, JSON.stringify(t.geometry), t.attribution,
+      t.srid ?? 4326, t.category, t.series ?? null, t.sourceId,
+    ],
   );
   return res.rows[0].id;
 }

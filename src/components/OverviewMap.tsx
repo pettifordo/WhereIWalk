@@ -28,8 +28,19 @@ export default function OverviewMap() {
             id: "tracks", type: "line", source: "tracks",
             paint: { "line-color": COLOURS.track, "line-width": 1.5, "line-opacity": 0.55 },
           });
+          // Coast paths dashed, underneath; National Trails solid on top (they overlap in places).
+          m.addLayer({
+            id: "trails-coast", type: "line", source: "trails",
+            filter: ["==", ["get", "category"], "coast-path"],
+            paint: {
+              "line-color": COLOURS.trail,
+              "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2.2, 12, 4],
+              "line-dasharray": [1.6, 1],
+            },
+          });
           m.addLayer({
             id: "trails", type: "line", source: "trails",
+            filter: ["!=", ["get", "category"], "coast-path"],
             layout: { "line-cap": "round" },
             paint: { "line-color": COLOURS.trail, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 12, 4] },
           });
@@ -84,6 +95,10 @@ export default function OverviewMap() {
         <div className="legend" style={{ margin: 0 }}>
           <span><i style={{ background: COLOURS.covered }} />Walked</span>
           <span><i style={{ background: COLOURS.trail }} />Not yet</span>
+          <span>
+            <i style={{ background: `repeating-linear-gradient(90deg, ${COLOURS.trail} 0 6px, transparent 6px 10px)` }} />
+            Coast path
+          </span>
           <label style={{ cursor: "pointer" }}>
             <input type="checkbox" checked={showTracks} onChange={toggleTracks} />{" "}
             <i style={{ background: COLOURS.track }} />My tracks

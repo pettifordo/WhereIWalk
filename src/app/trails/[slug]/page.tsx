@@ -5,6 +5,7 @@ import TrailExplorer from "@/components/TrailExplorer";
 import { trailDetail } from "@/lib/queries";
 import { requireUserId } from "@/lib/user";
 import { date, km, miles, pct } from "@/lib/format";
+import { CATEGORY_INFO } from "@/lib/trail-groups";
 
 export default async function TrailPage({ params }: { params: Promise<{ slug: string }> }) {
   await connection();
@@ -16,7 +17,11 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
   return (
     <main className="page">
       <p className="small"><Link href="/">← All trails</Link></p>
-      <h1>{t.name}</h1>
+      <h1 style={{ marginBottom: 6 }}>{t.name}</h1>
+      <p className="small" style={{ marginTop: 0 }}>
+        <span className="chip">{CATEGORY_INFO[t.category].title.replace(/s$/, "")}</span>
+        {t.series && <span className="muted"> · One stretch of the {t.series}</span>}
+      </p>
       <div className="stats">
         <div className="stat"><b>{pct(t.covered_m, t.length_m)}%</b><span className="muted small">complete</span></div>
         <div className="stat"><b>{km(t.covered_m)} km</b><span className="muted small">walked ({miles(t.covered_m)} mi)</span></div>

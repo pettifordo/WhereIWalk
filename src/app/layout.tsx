@@ -29,6 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/import">Import</Link>
                 <Link href="/activities">Activities</Link>
                 {user.isAdmin && <Link href="/invites">Invites</Link>}
+                <Link href="/about">How it works</Link>
               </nav>
               <form
                 className="account"
@@ -41,6 +42,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <button type="submit" className="small">Sign out</button>
               </form>
             </>
+          )}
+          {!user && (
+            <nav className="nav" style={{ marginLeft: "auto" }}>
+              <Link href="/about">How it works</Link>
+              <Link href="/signin">Sign in</Link>
+            </nav>
           )}
         </header>
         {children}

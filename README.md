@@ -10,8 +10,11 @@ See [plan.md](plan.md) for the roadmap and the research behind the design.
 
 ## How it works
 
-- **Trails** come from Natural England's *National Trails (England)* dataset (Open
-  Government Licence). Each trail is cut into ~100 m segments in Postgres/PostGIS.
+- **Trails** come from open government data (Open Government Licence): the 16 National
+  Trails (Natural England and Natural Resources Wales), the Wales Coast Path (NRW) and
+  the King Charles III England Coast Path (Natural England, in 66 stretches). Sources
+  are defined in `src/lib/trail-sources.ts`. Each trail is cut into ~100 m segments in
+  Postgres/PostGIS.
 - **Import** happens in the browser: files are parsed and each track is simplified
   (5 m tolerance) before upload, so raw files never leave your device.
 - **Matching** runs in PostGIS: a segment counts as walked when at least 60% of it lies
@@ -32,8 +35,7 @@ Requirements: Node 22+, Postgres 16 with PostGIS 3.
 npm install
 cp .env.example .env            # set DATABASE_URL
 npm run db:migrate              # create tables (idempotent)
-npm run trails:fetch            # download National Trails GeoJSON into data/
-npm run trails:load             # load trails + build segments (~15 s)
+npm run db:setup                # download + load any trail sources not yet loaded (~1 min)
 npm run dev                     # http://localhost:3000
 npm test                        # unit + database integration tests
 ```
@@ -48,8 +50,9 @@ The Vercel project `whereiwalk` is linked to this repo, with a Neon database
 attached through Vercel's Storage tab (which sets `DATABASE_URL`).
 
 Every Vercel build runs `npm run db:setup` first (see `vercel.json`). It applies the
-schema (including `CREATE EXTENSION postgis`) and, only if the database has no trails
-yet, downloads and loads them. So a new database is set up by its first deploy, and
+schema (including `CREATE EXTENSION postgis`) and downloads and loads any trail source
+that is new or whose `version` in `src/lib/trail-sources.ts` has been bumped (tracked in
+the `trail_source_loads` table). So a new database is set up by its first deploy, and
 the database password never has to leave Vercel.
 
 ### Google sign-in setup
@@ -74,9 +77,9 @@ the database password never has to leave Vercel.
 Preview deployments get different URLs, so Google sign-in only works on the
 production URL unless you add those URLs to the OAuth client too.
 
-To refresh trail data later (e.g. after Natural England updates it), run
-`npm run trails:fetch && npm run trails:load` with `DATABASE_URL` pointing at the
-database. This re-cuts segments and recomputes everyone's coverage.
+To refresh trail data later (e.g. after a publisher updates it), bump that source's
+`version` and deploy, or run `npm run trails:load -- <source-id>` with `DATABASE_URL`
+pointing at the database. This re-cuts segments and recomputes everyone's coverage.
 
 ## Data and licences
 

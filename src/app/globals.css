@@ -121,3 +121,17 @@ input[type="text"] {
 @media (max-width: 640px) {
   .page table th:nth-child(4), .page table td:nth-child(4) { display: none; }
 }
+
+.trail-group + .trail-group { margin-top: 28px; padding-top: 4px; border-top: 2px solid var(--border); }
+.trail-group h2 { margin-top: 12px; font-size: 1.2rem; }
+details.series > summary { list-style: none; cursor: pointer; }
+details.series > summary::-webkit-details-marker { display: none; }
+details.series[open] > summary .muted.small:last-child { visibility: hidden; }
+.trail-list.nested { margin: 8px 0 0 12px; padding-left: 10px; border-left: 3px solid var(--accent-soft); }
+.trail-list.nested li { padding: 7px 0; }
+.prose { line-height: 1.6; }
+.prose h2 { margin-top: 28px; }
+.prose li { margin: 4px 0; }
+.chip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.prose h2 { font-size: 1.3rem; }
+.prose h3 { font-size: 1.05rem; margin: 18px 0 6px; }
