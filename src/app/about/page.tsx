@@ -130,7 +130,7 @@ export default async function AboutPage() {
 
       <h2>Data sources</h2>
       <ul className="small">
-        {SOURCES.map((s) => (
+        {SOURCES.filter((s) => s.enabled !== false).map((s) => (
           <li key={s.id}>
             <strong>{s.label}</strong>: {s.attribution} Used under the {s.licenceName}.
           </li>

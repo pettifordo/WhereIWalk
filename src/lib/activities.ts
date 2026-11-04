@@ -104,13 +104,21 @@ export interface ActivityRow {
   distance_m: number;
   source: string;
   segments: number;
+  /** Metres of this walk along routes, overlapping routes counted once. */
+  route_m: number;
 }
 
 export async function listActivities(userId: number): Promise<ActivityRow[]> {
   return query<ActivityRow>(
     `
     SELECT a.id::int, a.name, a.activity_type, a.start_time, a.distance_m, a.source,
-           (SELECT count(*)::int FROM segment_coverage c WHERE c.activity_id = a.id) AS segments
+           (SELECT count(*)::int FROM segment_coverage c WHERE c.activity_id = a.id) AS segments,
+           -- Length of this walk that lies along any route it covered (overlapping routes count once).
+           COALESCE((
+             SELECT ST_Length(ST_Intersection(a.geom_bng, ST_Buffer(ST_Collect(s.geom_bng), 40)))
+             FROM segment_coverage c JOIN trail_segments s ON s.id = c.segment_id
+             WHERE c.activity_id = a.id
+           ), 0)::float8 AS route_m
     FROM activities a
     WHERE a.user_id = $1
     ORDER BY a.start_time DESC NULLS LAST, a.id DESC

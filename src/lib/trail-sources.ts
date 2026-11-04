@@ -28,6 +28,8 @@ export interface TrailSource {
   attribution: string;
   /** Human-readable licence name, e.g. "Open Government Licence v3.0". */
   licenceName: string;
+  /** Sources can be switched off; disabled sources are skipped by db:setup. Default: enabled. */
+  enabled?: boolean;
   download(ctx: { pool: pg.Pool; log: (m: string) => void }): Promise<TrailRecord[]>;
 }
 
@@ -179,6 +181,9 @@ export const SOURCES: TrailSource[] = [
   {
     id: "osm-routes",
     version: 1,
+    // Off by default: public Overpass servers refused or timed out from Vercel's build
+    // machines (Nov 2026). Set ENABLE_OSM_ROUTES=1 to try again.
+    enabled: process.env.ENABLE_OSM_ROUTES === "1",
     label: "Famous routes (OpenStreetMap)",
     source: "openstreetmap",
     licence: "ODbL-1.0",
@@ -292,5 +297,5 @@ export async function pendingSources(pool: pg.Pool, opts: { readOnly?: boolean }
     (await pool.query<{ source_id: string }>(`SELECT source_id FROM trail_source_loads WHERE NOT complete`)
       .then((r) => r.rows, () => [])).map((r) => r.source_id),
   );
-  return SOURCES.filter((s) => (loaded.get(s.id) ?? 0) < s.version || incomplete.has(s.id));
+  return SOURCES.filter((s) => s.enabled !== false && ((loaded.get(s.id) ?? 0) < s.version || incomplete.has(s.id)));
 }

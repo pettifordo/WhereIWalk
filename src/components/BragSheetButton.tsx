@@ -29,7 +29,7 @@ const day = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "-";
 
 interface MapData { trails: GeoJSON.FeatureCollection; covered: GeoJSON.FeatureCollection; tracks: GeoJSON.FeatureCollection }
-interface Walk { id: number; name: string | null; start_time: string | null; distance_m: number; segments: number }
+interface Walk { id: number; name: string | null; start_time: string | null; distance_m: number; route_m: number }
 
 /** Bounding box of all coordinates in some feature collections. */
 function bboxOf(...fcs: GeoJSON.FeatureCollection[]): [number, number, number, number] | null {
@@ -200,7 +200,7 @@ async function buildPdf(stats: Stats, name: string, setStep: (s: string) => void
   autoTable(doc, {
     startY: 26, margin: { left: M, right: M },
     head: [["Date", "Walk", "Distance km", "On routes km"]],
-    body: walks.map((w) => [day(w.start_time), t(w.name) || "Untitled", km(w.distance_m), w.segments ? `~${(w.segments * 0.1).toLocaleString("en-GB", { maximumFractionDigits: 1 })}` : "-"]),
+    body: walks.map((w) => [day(w.start_time), t(w.name) || "Untitled", km(w.distance_m), w.route_m > 50 ? km(w.route_m) : "-"]),
     styles: { fontSize: 8.5, textColor: INK }, headStyles: { fillColor: GREEN, textColor: 255 },
     columnStyles: { 0: { cellWidth: 28 }, 2: { halign: "right", cellWidth: 24 }, 3: { halign: "right", cellWidth: 26 } },
     alternateRowStyles: { fillColor: [247, 246, 242] },
@@ -212,7 +212,7 @@ async function buildPdf(stats: Stats, name: string, setStep: (s: string) => void
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.setFontSize(7).setTextColor(...MUTED).setFont("helvetica", "normal");
-    doc.text(t(`WhereIWalk · whereiwalk.vercel.app · Route data: Natural England, Natural Resources Wales (OGL), OpenStreetMap contributors (ODbL) · page ${i} of ${pages}`), M, 290);
+    doc.text(t(`WhereIWalk · whereiwalk.vercel.app · Route data: Natural England, Natural Resources Wales (OGL) · page ${i} of ${pages}`), M, 290);
   }
 
   const safe = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "walker";

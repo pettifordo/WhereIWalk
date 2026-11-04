@@ -16,7 +16,7 @@ export default async function ActivitiesPage() {
       ) : (
         <table>
           <thead>
-            <tr><th>Date</th><th>Name</th><th>Type</th><th className="num">Distance</th><th className="num">Trail km</th><th /></tr>
+            <tr><th>Date</th><th>Name</th><th>Type</th><th className="num">Distance</th><th className="num">On routes</th><th /></tr>
           </thead>
           <tbody>
             {activities.map((a) => (
@@ -25,7 +25,7 @@ export default async function ActivitiesPage() {
                 <td>{a.name ?? "Untitled"}</td>
                 <td className="muted">{a.activity_type ?? "—"}</td>
                 <td className="num">{km(a.distance_m)} km</td>
-                <td className="num">{a.segments ? `~${km(a.segments * 100)}` : "—"}</td>
+                <td className="num">{a.route_m > 50 ? km(a.route_m) : "—"}</td>
                 <td><DeleteActivityButton id={a.id} name={a.name ?? "Untitled"} /></td>
               </tr>
             ))}
