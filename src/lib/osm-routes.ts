@@ -7,7 +7,15 @@
 import type pg from "pg";
 import { slugify } from "./trails";
 
-export const OVERPASS_URL = process.env.OVERPASS_URL ?? "https://overpass-api.de/api/interpreter";
+/** Public Overpass instances, tried in order (OVERPASS_URL overrides, for testing). */
+export const OVERPASS_URLS = process.env.OVERPASS_URL
+  ? [process.env.OVERPASS_URL]
+  : [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.private.coffee/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    ];
 export const MIN_LENGTH_M = 30_000;
 /** Skip a route if this much of it lies within DUPLICATE_TOLERANCE_M of an official route. */
 export const DUPLICATE_FRACTION = 0.7;
@@ -32,18 +40,41 @@ interface OverpassElement {
   members?: { type: string; ref: number; role: string; geometry?: { lat: number; lon: number }[] }[];
 }
 
-async function overpass(query: string, attempt = 1): Promise<OverpassElement[]> {
-  const res = await fetch(OVERPASS_URL, {
+async function overpassAt(url: string, query: string, attempt = 1): Promise<OverpassElement[]> {
+  const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": USER_AGENT },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+      "User-Agent": USER_AGENT,
+    },
     body: new URLSearchParams({ data: query }),
   });
-  if ((res.status === 429 || res.status === 504) && attempt < 4) {
+  if ((res.status === 429 || res.status === 504) && attempt < 3) {
     await new Promise((r) => setTimeout(r, 30_000 * attempt)); // be polite, then retry
-    return overpass(query, attempt + 1);
+    return overpassAt(url, query, attempt + 1);
   }
-  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120)}`);
   return ((await res.json()) as { elements: OverpassElement[] }).elements;
+}
+
+/** Last instance that worked, so later batches go straight to it. */
+let preferred = 0;
+
+async function overpass(query: string, log: (m: string) => void = console.log): Promise<OverpassElement[]> {
+  const errors: string[] = [];
+  for (let k = 0; k < OVERPASS_URLS.length; k++) {
+    const i = (preferred + k) % OVERPASS_URLS.length;
+    try {
+      const out = await overpassAt(OVERPASS_URLS[i], query);
+      if (i !== preferred) log(`osm: using ${new URL(OVERPASS_URLS[i]).host}`);
+      preferred = i;
+      return out;
+    } catch (e) {
+      errors.push(`${new URL(OVERPASS_URLS[i]).host}: ${(e as Error).message}`);
+    }
+  }
+  throw new Error(`all Overpass servers failed — ${errors.join(" | ")}`);
 }
 
 const R = 6371008.8;
@@ -91,13 +122,13 @@ export async function downloadOsmRoutes(log = console.log): Promise<OsmRoute[]> 
     [out:json][timeout:300];
     area["ISO3166-1"="GB"][admin_level=2]->.gb;
     rel(area.gb)["type"="route"]["route"~"^(hiking|foot|walking)$"]["network"~"^(nwn|rwn)$"]["name"];
-    out tags;`);
+    out tags;`, log);
   log(`osm: ${list.length} named national/regional walking route relations in GB`);
   const ids = list.map((e) => e.id);
   const elements: OverpassElement[] = [];
   for (let i = 0; i < ids.length; i += 80) {
     const batch = ids.slice(i, i + 80);
-    elements.push(...(await overpass(`[out:json][timeout:300]; rel(id:${batch.join(",")}); out geom;`)));
+    elements.push(...(await overpass(`[out:json][timeout:300]; rel(id:${batch.join(",")}); out geom;`, log)));
     await new Promise((r) => setTimeout(r, 2000)); // gentle on a shared public service
   }
   return routesFromElements(elements);
