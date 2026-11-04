@@ -1,5 +1,5 @@
 import { query } from "./db";
-import { trailSummaries, type TrailSummary } from "./queries";
+import { trailSummaries, visibleTo, type TrailSummary } from "./queries";
 import { groupTrails, type CategoryGroup } from "./trail-groups";
 
 export interface WalkRef { id: number; name: string | null; date: string | null; km: number }
@@ -115,7 +115,7 @@ export async function getStats(userId: number): Promise<Stats> {
   const [unique] = await query<{ km: number }>(
     `SELECT COALESCE(ST_Area(ST_Union(ST_Buffer(s.geom_bng, 25, 'endcap=flat'))) / 50 / 1000, 0)::float8 AS km
      FROM (SELECT DISTINCT s.id, s.geom_bng FROM segment_coverage c JOIN trail_segments s ON s.id = c.segment_id
-           WHERE c.user_id = $1) s`,
+           JOIN trails t ON t.id = s.trail_id WHERE c.user_id = $1 AND ${visibleTo("t", "$1")}) s`,
     [userId],
   );
 

@@ -32,7 +32,7 @@ export default function OverviewMap() {
           // National Trails solid on top (they overlap in places).
           m.addLayer({
             id: "trails-famous", type: "line", source: "trails",
-            filter: ["==", ["get", "category"], "famous-route"],
+            filter: ["in", ["get", "category"], ["literal", ["famous-route", "community", "my-route"]]],
             layout: { "line-cap": "round" },
             paint: {
               "line-color": COLOURS.trail,

@@ -13,7 +13,7 @@ interface Row { name: string; slug: string; category: string; series: string | n
 
 export default async function AboutPage() {
   await connection();
-  const trails = await query<Row>(`SELECT name, slug, category, series, length_m FROM trails ORDER BY name`);
+  const trails = await query<Row>(`SELECT name, slug, category, series, length_m FROM trails WHERE owner_id IS NULL OR shared ORDER BY name`);
   const national = trails.filter((t) => t.category === "national-trail");
   const coast = trails.filter((t) => t.category === "coast-path" && !t.series);
   const ecp = trails.filter((t) => t.series === ENGLAND_COAST_PATH);
@@ -89,6 +89,14 @@ export default async function AboutPage() {
           Walkers Association (LDWA) may follow if the LDWA agrees.
         </p>
       )}
+
+      <h3>Your own and community routes</h3>
+      <p>
+        On <strong>My routes</strong> you can upload a GPX file of any route, for example a path from a guidebook, and
+        track your progress on it. Uploads are only visible to you. If a route looks like one that&apos;s already here,
+        you&apos;ll be asked before it&apos;s added. Admins can share uploaded routes with everyone as{" "}
+        <strong>Community routes</strong>.
+      </p>
 
       <h2>How your walks are matched</h2>
       <ul>

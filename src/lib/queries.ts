@@ -1,6 +1,16 @@
 import { query } from "./db";
 import type { TrailCategory } from "./trails";
 
+/**
+ * SQL condition: may user `$n` see trail alias `t`? Official routes (no owner) and
+ * shared uploads are visible to everyone; unshared uploads only to their uploader.
+ */
+export const visibleTo = (t: string, userParam: string) =>
+  `(${t}.owner_id IS NULL OR ${t}.shared OR ${t}.owner_id = ${userParam})`;
+/** SQL: category for display, with a member's unshared uploads shown as "my-route". */
+export const displayCategory = (t: string) =>
+  `(CASE WHEN ${t}.owner_id IS NOT NULL AND NOT ${t}.shared THEN 'my-route' ELSE ${t}.category END)`;
+
 export interface TrailSummary {
   id: number;
   slug: string;
@@ -23,11 +33,12 @@ export async function trailSummaries(userId: number): Promise<TrailSummary[]> {
       WHERE c.user_id = $1
       GROUP BY s.trail_id, s.id, s.length_m
     )
-    SELECT t.id, t.slug, t.name, t.category, t.series, t.length_m,
+    SELECT t.id, t.slug, t.name, ${displayCategory("t")} AS category, t.series, t.length_m,
            COALESCE(sum(cv.length_m), 0)::float8 AS covered_m,
            min(cv.first_on)::text AS first_walked,
            max(cv.last_on)::text AS last_walked
     FROM trails t LEFT JOIN covered cv ON cv.trail_id = t.id
+    WHERE ${visibleTo("t", "$1")}
     GROUP BY t.id
     ORDER BY t.name
     `,
@@ -38,16 +49,18 @@ export async function trailSummaries(userId: number): Promise<TrailSummary[]> {
 type FeatureCollection = { type: "FeatureCollection"; features: unknown[] };
 
 /** Simplified outline of every trail for the overview map. */
-export async function trailsOverview(): Promise<FeatureCollection> {
+export async function trailsOverview(userId: number): Promise<FeatureCollection> {
   const rows = await query<{ fc: FeatureCollection }>(
     `
     SELECT json_build_object('type', 'FeatureCollection', 'features', COALESCE(json_agg(json_build_object(
       'type', 'Feature',
-      'properties', json_build_object('id', id, 'slug', slug, 'name', name, 'category', category),
-      'geometry', ST_AsGeoJSON(ST_Transform(ST_SimplifyPreserveTopology(geom_bng, 25), 4326), 5)::json
+      'properties', json_build_object('id', t.id, 'slug', t.slug, 'name', t.name, 'category', ${displayCategory("t")}),
+      'geometry', ST_AsGeoJSON(ST_Transform(ST_SimplifyPreserveTopology(t.geom_bng, 25), 4326), 5)::json
     )), '[]'::json)) AS fc
-    FROM trails
+    FROM trails t
+    WHERE ${visibleTo("t", "$1")}
     `,
+    [userId],
   );
   return rows[0].fc;
 }
@@ -58,8 +71,8 @@ export async function coveredOverview(userId: number): Promise<FeatureCollection
     `
     WITH segs AS (
       SELECT DISTINCT s.id, s.trail_id, s.geom_bng
-      FROM segment_coverage c JOIN trail_segments s ON s.id = c.segment_id
-      WHERE c.user_id = $1
+      FROM segment_coverage c JOIN trail_segments s ON s.id = c.segment_id JOIN trails t ON t.id = s.trail_id
+      WHERE c.user_id = $1 AND ${visibleTo("t", "$1")}
     ), merged AS (
       SELECT trail_id, ST_SimplifyPreserveTopology(ST_LineMerge(ST_Collect(geom_bng)), 10) AS g
       FROM segs GROUP BY trail_id
@@ -119,7 +132,13 @@ export interface TrailRun {
 }
 
 export interface TrailDetail {
-  trail: TrailSummary & { attribution: string; licence: string; bbox: [number, number, number, number] };
+  trail: TrailSummary & {
+    attribution: string;
+    licence: string;
+    bbox: [number, number, number, number];
+    /** Set for member uploads. */
+    upload: { ownerId: number; owner: string; shared: boolean; description: string | null } | null;
+  };
   runs: TrailRun[];
   geojson: FeatureCollection;
   activities: { id: number; name: string | null; start_time: string | null; covered_m: number }[];
@@ -135,8 +154,14 @@ function parseBox(box: string): [number, number, number, number] {
 export async function trailDetail(userId: number, slug: string): Promise<TrailDetail | null> {
   const summary = (await trailSummaries(userId)).find((t) => t.slug === slug);
   if (!summary) return null;
-  const [meta] = await query<{ attribution: string; licence: string; bbox: string }>(
-    `SELECT attribution, licence, ST_Extent(geom)::text AS bbox FROM trails WHERE id = $1 GROUP BY attribution, licence`,
+  const [meta] = await query<{
+    attribution: string; licence: string; bbox: string;
+    owner_id: number | null; owner: string | null; shared: boolean; description: string | null;
+  }>(
+    `SELECT t.attribution, t.licence, ST_Extent(t.geom)::text AS bbox, t.owner_id, COALESCE(u.display_name, u.email) AS owner,
+            t.shared, t.description
+     FROM trails t LEFT JOIN users u ON u.id = t.owner_id WHERE t.id = $1
+     GROUP BY t.id, u.id`,
     [summary.id],
   );
 
@@ -178,7 +203,12 @@ export async function trailDetail(userId: number, slug: string): Promise<TrailDe
   );
 
   return {
-    trail: { ...summary, attribution: meta.attribution, licence: meta.licence, bbox: parseBox(meta.bbox) },
+    trail: {
+      ...summary, attribution: meta.attribution, licence: meta.licence, bbox: parseBox(meta.bbox),
+      upload: meta.owner_id
+        ? { ownerId: meta.owner_id, owner: meta.owner ?? "a member", shared: meta.shared, description: meta.description }
+        : null,
+    },
     runs: runs.map((r) => ({
       part: r.part, covered: r.covered, from_m: r.from_m, length_m: r.length_m, bbox: parseBox(r.bbox),
     })),
@@ -202,6 +232,8 @@ export const licenceName = (code: string) => LICENCE_NAMES[code] ?? code;
 
 /** One line per data source in use, e.g. "© Natural England ... Open Government Licence v3.0." */
 export async function attributions(): Promise<string[]> {
-  const rows = await query<{ attribution: string; licence: string }>(`SELECT DISTINCT attribution, licence FROM trails ORDER BY licence, attribution`);
+  const rows = await query<{ attribution: string; licence: string }>(
+    `SELECT DISTINCT attribution, licence FROM trails WHERE owner_id IS NULL ORDER BY licence, attribution`,
+  );
   return rows.map((r) => `${r.attribution} ${licenceName(r.licence)}.`);
 }

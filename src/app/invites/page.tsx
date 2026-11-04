@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import AdminTabs from "@/components/AdminTabs";
 import ConfirmSubmit from "@/components/ConfirmSubmit";
 import { addInvite, deleteRemovedUser, listInvites, listRemoved, removeInvite } from "@/lib/invites";
 import { requireAdmin } from "@/lib/user";
@@ -52,6 +53,7 @@ export default async function InvitesPage({
 
   return (
     <main className="page" style={{ maxWidth: 860 }}>
+      <AdminTabs active="invites" />
       <h1>Invites</h1>
       <p className="muted">
         People on this list can sign in to WhereIWalk with their Google account. Each person only sees their own walks.

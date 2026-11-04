@@ -6,7 +6,7 @@ export async function GET() {
   const userId = await apiUserId();
   if (userId === null) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const [trails, covered, tracks] = await Promise.all([
-    trailsOverview(),
+    trailsOverview(userId),
     coveredOverview(userId),
     tracksOverview(userId),
   ]);

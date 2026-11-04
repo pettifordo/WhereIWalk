@@ -7,12 +7,14 @@ export default function ConfirmSubmit({
   className,
   name,
   value,
+  formAction,
 }: {
   message: string;
   children: React.ReactNode;
   className?: string;
   name?: string;
   value?: string;
+  formAction?: (fd: FormData) => void | Promise<void>;
 }) {
   return (
     <button
@@ -20,6 +22,7 @@ export default function ConfirmSubmit({
       className={className}
       name={name}
       value={value}
+      formAction={formAction}
       onClick={(e) => {
         if (!confirm(message)) e.preventDefault();
       }}

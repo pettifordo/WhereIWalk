@@ -20,6 +20,11 @@ See [plan.md](plan.md) for the roadmap and the research behind the design.
 - **Matching** runs in PostGIS: a segment counts as walked when at least 60% of it lies
   within 40 m of one of your tracks (`src/lib/coverage.ts`).
 - **Privacy**: the first and last 200 m of each track are hidden on the map.
+- **Member routes**: anyone can upload a route GPX on *My routes* (private to them; warned
+  if it duplicates a visible route). Admins share uploads as *Community routes* on the
+  admin *Community routes* page (one by one or in bulk).
+- **Stats & brag sheet**: `/stats` shows totals, records and charts; "Download brag sheet"
+  builds a PDF (map, stats, progress, walks) in the browser.
 - **Accounts**: sign in with Google (Auth.js). Admins (emails in `ALLOWED_EMAILS`) can
   invite people on the in-app **Invites** page; only admins and invited people can sign
   in, and each person sees only their own activities and progress.

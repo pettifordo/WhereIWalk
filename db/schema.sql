@@ -99,3 +99,15 @@ CREATE TABLE IF NOT EXISTS trail_source_loads (
 -- Resumable loads: a big source can be loaded over several deploys.
 ALTER TABLE trail_source_loads ADD COLUMN IF NOT EXISTS complete boolean NOT NULL DEFAULT true;
 ALTER TABLE trail_source_loads ADD COLUMN IF NOT EXISTS started_at timestamptz;
+
+-- Routes uploaded by members (category 'community'). Private to the uploader until an
+-- admin shares them. Official routes have owner_id NULL and are always visible.
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS owner_id int REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS shared boolean NOT NULL DEFAULT true;
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS description text;
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS shared_at timestamptz;
+-- Closest existing route at upload time, for admins reviewing uploads.
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS similar_to text;
+ALTER TABLE trails ADD COLUMN IF NOT EXISTS similar_overlap real;
+CREATE INDEX IF NOT EXISTS trails_owner_idx ON trails (owner_id) WHERE owner_id IS NOT NULL;

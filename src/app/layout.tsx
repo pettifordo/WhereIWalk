@@ -29,7 +29,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/import">Import</Link>
                 <Link href="/activities">Activities</Link>
                 <Link href="/stats">Stats</Link>
-                {user.isAdmin && <Link href="/invites">Invites</Link>}
+                <Link href="/routes">My routes</Link>
+                {user.isAdmin && <Link href="/invites">Admin</Link>}
                 <Link href="/about">How it works</Link>
               </nav>
               <form

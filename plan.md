@@ -115,6 +115,10 @@ Sources: <https://www.ldwa.org.uk/>, <https://ldwa.org.uk/terms.php>
 - [x] Wales-only National Trails (Glyndŵr's Way, Pembrokeshire Coast Path), Wales Coast
       Path, King Charles III England Coast Path (66 stretches); trail list grouped by type.
 - [x] "How it works" page; step-by-step Strava export guide on the Import page.
+- [x] Stats page and downloadable PDF brag sheet.
+- [x] Member route uploads (private) with duplicate warning; admin sharing as Community routes.
+- [ ] OpenStreetMap routes: code ready but disabled (ENABLE_OSM_ROUTES=1) — public Overpass
+      servers refused or timed out from Vercel builds.
 
 ### Phase 2 — Friends & family
 - [x] Invite-only Google login with per-person data (built 2026-11-03; replaced the

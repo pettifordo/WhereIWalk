@@ -33,6 +33,14 @@ export const CATEGORY_INFO: Record<TrailSummary["category"], { title: string; bl
     title: "Famous routes",
     blurb: "Other named long-distance walks across Great Britain, as mapped by OpenStreetMap volunteers.",
   },
+  community: {
+    title: "Community routes",
+    blurb: "Routes uploaded by WhereIWalk members and shared by an admin.",
+  },
+  "my-route": {
+    title: "My routes",
+    blurb: "Routes you've uploaded. Only you can see them unless an admin shares them with everyone.",
+  },
 };
 
 const byProgress = (a: { covered_m: number; length_m: number; name: string }, b: typeof a) =>
@@ -40,7 +48,7 @@ const byProgress = (a: { covered_m: number; length_m: number; name: string }, b:
 
 /** Group trail summaries by category, and multi-stretch routes by series. */
 export function groupTrails(trails: TrailSummary[]): CategoryGroup[] {
-  const order: TrailSummary["category"][] = ["national-trail", "coast-path", "famous-route"];
+  const order: TrailSummary["category"][] = ["national-trail", "coast-path", "famous-route", "community", "my-route"];
   return order
     .map((category) => {
       const inCat = trails.filter((t) => t.category === category);

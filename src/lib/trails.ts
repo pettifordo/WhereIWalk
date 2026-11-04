@@ -13,7 +13,8 @@ export function slugify(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export type TrailCategory = "national-trail" | "coast-path" | "famous-route";
+/** Stored categories, plus "my-route" (a member's own unshared upload; display only). */
+export type TrailCategory = "national-trail" | "coast-path" | "famous-route" | "community" | "my-route";
 
 export interface TrailInput {
   name: string;

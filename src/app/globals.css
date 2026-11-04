@@ -187,3 +187,8 @@ details.series[open] .series-toggle::after { content: " — hide"; }
 .barchart-col:hover .barchart-tip, .barchart-col:focus .barchart-tip { opacity: 1; }
 .barchart details { margin-top: 8px; }
 .page-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+.warning-box { border: 1px solid var(--trail); background: color-mix(in srgb, var(--trail) 10%, var(--surface)); border-radius: var(--radius); padding: 12px; }
+.warning-box ul { margin: 6px 0 10px; }
+.bulk-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+textarea { font: inherit; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
