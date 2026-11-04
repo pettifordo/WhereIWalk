@@ -96,3 +96,6 @@ CREATE TABLE IF NOT EXISTS trail_source_loads (
   version    int NOT NULL,
   loaded_at  timestamptz NOT NULL DEFAULT now()
 );
+-- Resumable loads: a big source can be loaded over several deploys.
+ALTER TABLE trail_source_loads ADD COLUMN IF NOT EXISTS complete boolean NOT NULL DEFAULT true;
+ALTER TABLE trail_source_loads ADD COLUMN IF NOT EXISTS started_at timestamptz;

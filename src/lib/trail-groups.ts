@@ -29,6 +29,10 @@ export const CATEGORY_INFO: Record<TrailSummary["category"], { title: string; bl
     title: "Coast paths",
     blurb: "Routes around the coasts of Wales and England. They overlap some National Trails.",
   },
+  "famous-route": {
+    title: "Famous routes",
+    blurb: "Other named long-distance walks across Great Britain, as mapped by OpenStreetMap volunteers.",
+  },
 };
 
 const byProgress = (a: { covered_m: number; length_m: number; name: string }, b: typeof a) =>
@@ -36,7 +40,7 @@ const byProgress = (a: { covered_m: number; length_m: number; name: string }, b:
 
 /** Group trail summaries by category, and multi-stretch routes by series. */
 export function groupTrails(trails: TrailSummary[]): CategoryGroup[] {
-  const order: TrailSummary["category"][] = ["national-trail", "coast-path"];
+  const order: TrailSummary["category"][] = ["national-trail", "coast-path", "famous-route"];
   return order
     .map((category) => {
       const inCat = trails.filter((t) => t.category === category);

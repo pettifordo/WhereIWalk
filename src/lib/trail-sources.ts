@@ -5,6 +5,7 @@
 // adding a source or bumping a version is enough to get it into production.
 import type pg from "pg";
 import { computeCoverage } from "./coverage";
+import { MIN_LENGTH_M, checkDuplicates, downloadOsmRoutes, osmSlug } from "./osm-routes";
 import { segmentTrail, slugify, upsertTrail, type TrailCategory } from "./trails";
 
 /** One trail ready to load: geometry is always a MultiLineString. */
@@ -25,7 +26,9 @@ export interface TrailSource {
   source: string;
   licence: string;
   attribution: string;
-  download(): Promise<TrailRecord[]>;
+  /** Human-readable licence name, e.g. "Open Government Licence v3.0". */
+  licenceName: string;
+  download(ctx: { pool: pg.Pool; log: (m: string) => void }): Promise<TrailRecord[]>;
 }
 
 const NE_ATTRIBUTION = () =>
@@ -104,6 +107,7 @@ export const SOURCES: TrailSource[] = [
     label: "National Trails (England)",
     source: "natural-england",
     licence: "OGL-UK-3.0",
+    licenceName: "Open Government Licence v3.0",
     attribution: NE_ATTRIBUTION(),
     async download() {
       const fs = await arcgisFeatures(
@@ -121,6 +125,7 @@ export const SOURCES: TrailSource[] = [
     label: "National Trails (Wales)",
     source: "natural-resources-wales",
     licence: "OGL-UK-3.0",
+    licenceName: "Open Government Licence v3.0",
     attribution: NRW_ATTRIBUTION,
     async download() {
       // Offa's Dyke is skipped: the England dataset already has the whole route.
@@ -140,6 +145,7 @@ export const SOURCES: TrailSource[] = [
     label: "Wales Coast Path",
     source: "natural-resources-wales",
     licence: "OGL-UK-3.0",
+    licenceName: "Open Government Licence v3.0",
     attribution: NRW_ATTRIBUTION,
     async download() {
       const fs = await walesWfs("inspire-nrw:NRW_WALES_COASTAL_PATH");
@@ -156,6 +162,7 @@ export const SOURCES: TrailSource[] = [
     label: ENGLAND_COAST_PATH,
     source: "natural-england",
     licence: "OGL-UK-3.0",
+    licenceName: "Open Government Licence v3.0",
     attribution: NE_ATTRIBUTION(),
     async download() {
       // Main route only (alternative routes excluded), one trail per named stretch.
@@ -169,16 +176,76 @@ export const SOURCES: TrailSource[] = [
       }));
     },
   },
+  {
+    id: "osm-routes",
+    version: 1,
+    label: "Famous routes (OpenStreetMap)",
+    source: "openstreetmap",
+    licence: "ODbL-1.0",
+    licenceName: "Open Database Licence (ODbL)",
+    attribution: "Route data © OpenStreetMap contributors.",
+    async download({ pool, log }) {
+      const routes = (await downloadOsmRoutes(log)).filter((r) => r.lengthM >= MIN_LENGTH_M);
+      log(`osm: ${routes.length} routes of ${MIN_LENGTH_M / 1000} km or more`);
+      const checked = await checkDuplicates(pool, routes);
+      const keep = checked.filter((r) => !r.duplicateOf);
+      const dups = checked.filter((r) => r.duplicateOf);
+      log(`osm: ${dups.length} skipped as duplicates of official routes: ` +
+        dups.map((d) => `${d.name} (≈${d.duplicateOf}, ${Math.round(d.overlap * 100)}%)`).join("; "));
+      const totalKm = keep.reduce((s, r) => s + r.lengthM, 0) / 1000;
+      log(`osm: keeping ${keep.length} routes, ${Math.round(totalKm)} km in total`);
+      for (const r of [...keep].sort((a, b) => b.lengthM - a.lengthM)) {
+        log(`osm:   ${r.name} — ${Math.round(r.lengthM / 1000)} km (${r.network}, relation ${r.ids.join("+")})`);
+      }
+      return keep.map((r) => ({
+        name: r.name, slug: osmSlug(r.name), category: "famous-route" as const, series: null, srid: 4326 as const,
+        geometry: multi(r.lines),
+      }));
+    },
+  },
 ];
 
 /**
  * Load one source: upsert its trails, re-cut their segments, recompute everyone's
  * coverage for them, drop trails the source no longer contains, and record the version.
+ *
+ * With a deadline, stops early when time runs out and records the load as incomplete;
+ * the next run resumes, skipping trails already loaded in this attempt.
+ * Returns true if the source finished loading.
  */
-export async function loadSource(pool: pg.Pool, src: TrailSource, records: TrailRecord[], log = console.log) {
-  const ids: number[] = [];
+export async function loadSource(
+  pool: pg.Pool,
+  src: TrailSource,
+  records: TrailRecord[],
+  log = console.log,
+  opts: { deadline?: number } = {},
+): Promise<boolean> {
+  const prev = (await pool.query<{ version: number; complete: boolean; started_at: string | null }>(
+    `SELECT version, complete, started_at FROM trail_source_loads WHERE source_id = $1`, [src.id],
+  )).rows[0];
+  const resuming = prev && prev.version === src.version && !prev.complete && prev.started_at;
+  const startedAt = resuming ? prev.started_at! : new Date().toISOString();
+  await pool.query(
+    `INSERT INTO trail_source_loads (source_id, version, complete, started_at) VALUES ($1, $2, false, $3)
+     ON CONFLICT (source_id) DO UPDATE SET version = EXCLUDED.version, complete = false, started_at = EXCLUDED.started_at`,
+    [src.id, src.version, startedAt],
+  );
+  const done = new Set(
+    resuming
+      ? (await pool.query<{ slug: string }>(
+          `SELECT slug FROM trails WHERE source_id = $1 AND updated_at >= $2`, [src.id, startedAt],
+        )).rows.map((r) => r.slug)
+      : [],
+  );
+  if (resuming) log(`${src.id}: resuming, ${done.size} of ${records.length} already loaded`);
+
   const activityIds = (await pool.query<{ id: string }>(`SELECT id FROM activities`)).rows.map((r) => Number(r.id));
   for (const r of records) {
+    if (done.has(r.slug)) continue;
+    if (opts.deadline && Date.now() > opts.deadline) {
+      log(`${src.id}: out of time, ${done.size} of ${records.length} loaded; the next deploy will continue`);
+      return false;
+    }
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -189,7 +256,7 @@ export async function loadSource(pool: pg.Pool, src: TrailSource, records: Trail
       const n = await segmentTrail(client, trailId);
       const covered = await computeCoverage(activityIds, { trailId, db: client });
       await client.query("COMMIT");
-      ids.push(trailId);
+      done.add(r.slug);
       log(`${src.id}: ${r.name}: ${n} segments, ${covered} coverage rows`);
     } catch (e) {
       await client.query("ROLLBACK");
@@ -199,21 +266,18 @@ export async function loadSource(pool: pg.Pool, src: TrailSource, records: Trail
     }
   }
   const gone = await pool.query<{ name: string }>(
-    `DELETE FROM trails WHERE source_id = $1 AND NOT (id = ANY($2::int[])) RETURNING name`,
-    [src.id, ids],
+    `DELETE FROM trails WHERE source_id = $1 AND NOT (slug = ANY($2::text[])) RETURNING name`,
+    [src.id, records.map((r) => r.slug)],
   );
   for (const g of gone.rows) log(`${src.id}: removed ${g.name} (no longer in source)`);
-  await pool.query(
-    `INSERT INTO trail_source_loads (source_id, version) VALUES ($1, $2)
-     ON CONFLICT (source_id) DO UPDATE SET version = EXCLUDED.version, loaded_at = now()`,
-    [src.id, src.version],
-  );
+  await pool.query(`UPDATE trail_source_loads SET complete = true, loaded_at = now() WHERE source_id = $1`, [src.id]);
+  return true;
 }
 
 /** Sources not yet loaded at their current version. */
-export async function pendingSources(pool: pg.Pool): Promise<TrailSource[]> {
+export async function pendingSources(pool: pg.Pool, opts: { readOnly?: boolean } = {}): Promise<TrailSource[]> {
   // Databases set up before versioning existed already hold the England National Trails.
-  await pool.query(
+  if (!opts.readOnly) await pool.query(
     `INSERT INTO trail_source_loads (source_id, version)
      SELECT 'national-trails-england', 1
      WHERE EXISTS (SELECT 1 FROM trails WHERE source_id = 'national-trails-england')
@@ -223,5 +287,10 @@ export async function pendingSources(pool: pg.Pool): Promise<TrailSource[]> {
     (await pool.query<{ source_id: string; version: number }>(`SELECT source_id, version FROM trail_source_loads`)).rows
       .map((r) => [r.source_id, r.version]),
   );
-  return SOURCES.filter((s) => (loaded.get(s.id) ?? 0) < s.version);
+  // `complete` was added later; a database not yet migrated (e.g. seen from a preview build) has none.
+  const incomplete = new Set(
+    (await pool.query<{ source_id: string }>(`SELECT source_id FROM trail_source_loads WHERE NOT complete`)
+      .then((r) => r.rows, () => [])).map((r) => r.source_id),
+  );
+  return SOURCES.filter((s) => (loaded.get(s.id) ?? 0) < s.version || incomplete.has(s.id));
 }

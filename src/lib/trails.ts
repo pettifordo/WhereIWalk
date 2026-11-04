@@ -13,7 +13,7 @@ export function slugify(name: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export type TrailCategory = "national-trail" | "coast-path";
+export type TrailCategory = "national-trail" | "coast-path" | "famous-route";
 
 export interface TrailInput {
   name: string;

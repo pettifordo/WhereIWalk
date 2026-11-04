@@ -11,6 +11,6 @@ if (unknown.length) throw new Error(`Unknown source(s): ${unknown.join(", ")}. K
 const pool = getPool();
 for (const src of SOURCES.filter((s) => !wanted.length || wanted.includes(s.id))) {
   console.log(`Loading ${src.id}...`);
-  await loadSource(pool, src, await src.download());
+  await loadSource(pool, src, await src.download({ pool, log: console.log }));
 }
 await pool.end();
