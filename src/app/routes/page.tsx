@@ -19,12 +19,17 @@ export default async function MyRoutesPage() {
     <main className="page" style={{ maxWidth: 860 }}>
       <h1>My routes</h1>
       <p>
-        Add a route that isn&apos;t in WhereIWalk yet, for example a long-distance path from a guidebook or the LDWA
-        website, and see how much of it you&apos;ve walked. Upload its GPX file below.
+        Add a route that isn&apos;t in WhereIWalk yet and see how much of it you&apos;ve walked. Upload the route as a
+        GPX file (TCX and FIT work too).
       </p>
       <p className="muted small">
         Your uploaded routes are <strong>only visible to you</strong>. An admin can choose to share a route with
-        everyone as a Community route. Only upload route files you&apos;re allowed to use.
+        everyone as a Community route.
+      </p>
+      <p className="warning-box small">
+        <strong>Copyright:</strong> many route files, such as those from guidebooks, websites and paid apps, are
+        copyright. Only upload files you&apos;re allowed to use, and only ask for a route to be shared if you have the
+        right to share it.
       </p>
       <RouteUploader />
 

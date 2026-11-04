@@ -91,3 +91,5 @@ pointing at the database. This re-cuts segments and recomputes everyone's covera
 - National Trails: © Natural England copyright. Contains Ordnance Survey data © Crown
   copyright and database right. Open Government Licence v3.0.
 - Base map: © OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors.
+- UK outline in the PDF brag sheet (`src/lib/uk-outline.json`): Natural Earth
+  (public domain), simplified to ~250 m.

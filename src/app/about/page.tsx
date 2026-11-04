@@ -92,10 +92,10 @@ export default async function AboutPage() {
 
       <h3>Your own and community routes</h3>
       <p>
-        On <strong>My routes</strong> you can upload a GPX file of any route, for example a path from a guidebook, and
-        track your progress on it. Uploads are only visible to you. If a route looks like one that&apos;s already here,
-        you&apos;ll be asked before it&apos;s added. Admins can share uploaded routes with everyone as{" "}
-        <strong>Community routes</strong>.
+        On <strong>My routes</strong> you can upload a GPX file of any route and track your progress on it. Uploads are
+        only visible to you. If a route looks like one that&apos;s already here, you&apos;ll be asked before it&apos;s
+        added. Admins can share uploaded routes with everyone as <strong>Community routes</strong>. Route files are
+        often copyright, so only upload ones you&apos;re allowed to use.
       </p>
 
       <h2>How your walks are matched</h2>
