@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { nameKey, routesFromElements } from "../src/lib/osm-routes";
+import { inGreatBritainOrNI, nameKey, routesFromElements } from "../src/lib/osm-routes";
 
 const way = (ref: number, role: string, pts: number[][]) => ({
   type: "way", ref, role, geometry: pts.map(([lon, lat]) => ({ lon, lat })),
@@ -33,5 +33,14 @@ describe("OpenStreetMap routes", () => {
   test("name keys ignore 'The' and 'National Trail'", () => {
     assert.equal(nameKey("The Ridgeway National Trail"), nameKey("Ridgeway"));
     assert.equal(nameKey("Offa's Dyke Path"), nameKey("Offas Dyke Path"));
+  });
+
+  test("Ireland filter keeps GB and Northern Ireland, drops the Republic", () => {
+    const keep: [number, number][] = [[-5.93, 54.6] /* Belfast */, [-7.3, 55.0] /* Derry */, [-6.3, 49.92] /* Scilly */,
+      [-7.3, 57.4] /* Hebrides */, [-5.6, 55.4] /* Kintyre */, [-3.2, 51.5] /* Cardiff */, [-4.7, 52.0] /* Pembrokeshire */];
+    const drop: [number, number][] = [[-6.26, 53.35] /* Dublin */, [-8.47, 51.9] /* Cork */, [-9.05, 53.27] /* Galway */,
+      [-8.0, 55.0] /* Donegal */, [-6.4, 52.9] /* Wicklow */];
+    for (const p of keep) assert.equal(inGreatBritainOrNI(p), true, `keep ${p}`);
+    for (const p of drop) assert.equal(inGreatBritainOrNI(p), false, `drop ${p}`);
   });
 });

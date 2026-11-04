@@ -98,7 +98,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ s
           </section>
         ))}
         <div className="attribution">
-          {attrib.map((a) => <div key={a}>Trail data: {a} Open Government Licence v3.0.</div>)}
+          {attrib.map((a) => <div key={a}>Trail data: {a}</div>)}
           <div><Link href="/about">About the data and how matching works</Link></div>
         </div>
       </aside>

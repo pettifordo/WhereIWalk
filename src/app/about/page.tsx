@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { MIN_COVERED_FRACTION, SEGMENT_LENGTH_M, TOLERANCE_M } from "@/lib/coverage";
 import { PRIVACY_TRIM_M } from "@/lib/queries";
 import { ENGLAND_COAST_PATH, SOURCES } from "@/lib/trail-sources";
+import { MIN_LENGTH_M } from "@/lib/osm-routes";
 import { km } from "@/lib/format";
 
 export const metadata = { title: "How it works · WhereIWalk" };
@@ -17,6 +18,7 @@ export default async function AboutPage() {
   const coast = trails.filter((t) => t.category === "coast-path" && !t.series);
   const ecp = trails.filter((t) => t.series === ENGLAND_COAST_PATH);
   const ecpLength = ecp.reduce((s, t) => s + t.length_m, 0);
+  const famous = trails.filter((t) => t.category === "famous-route");
 
   return (
     <main className="page prose" style={{ maxWidth: 760 }}>
@@ -63,12 +65,30 @@ export default async function AboutPage() {
         counts towards both.
       </p>
 
-      <h3>Famous routes (coming later)</h3>
-      <p>
-        We&apos;d like to add other well-known routes, such as Scotland&apos;s Great Trails and the long-distance paths
-        listed by the Long Distance Walkers Association (LDWA). They&apos;ll be added once there&apos;s route data we
-        have permission to use.
-      </p>
+      <h3>Famous routes</h3>
+      {famous.length > 0 ? (
+        <>
+          <p>
+            {famous.length} other named long-distance walks of {MIN_LENGTH_M / 1000} km or more, totalling{" "}
+            {km(famous.reduce((s, t) => s + t.length_m, 0))} km. They come from OpenStreetMap, where volunteers map
+            waymarked routes. Routes that mostly repeat a National Trail or coast path are left out. Because they&apos;re
+            volunteer-mapped, a few may be incomplete or out of date.
+          </p>
+          <details>
+            <summary className="small">Show all {famous.length}</summary>
+            <ul className="small">
+              {famous.map((t) => (
+                <li key={t.slug}>{t.name} <span className="muted">({km(t.length_m)} km)</span></li>
+              ))}
+            </ul>
+          </details>
+        </>
+      ) : (
+        <p>
+          Other named long-distance walks, from OpenStreetMap, are on their way. Paths listed by the Long Distance
+          Walkers Association (LDWA) may follow if the LDWA agrees.
+        </p>
+      )}
 
       <h2>How your walks are matched</h2>
       <ul>
@@ -112,7 +132,7 @@ export default async function AboutPage() {
       <ul className="small">
         {SOURCES.map((s) => (
           <li key={s.id}>
-            <strong>{s.label}</strong>: {s.attribution} Used under the Open Government Licence v3.0.
+            <strong>{s.label}</strong>: {s.attribution} Used under the {s.licenceName}.
           </li>
         ))}
         <li>

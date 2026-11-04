@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import TrailExplorer from "@/components/TrailExplorer";
-import { trailDetail } from "@/lib/queries";
+import { licenceName, trailDetail } from "@/lib/queries";
 import { requireUserId } from "@/lib/user";
 import { date, km, miles, pct } from "@/lib/format";
 import { CATEGORY_INFO } from "@/lib/trail-groups";
@@ -51,8 +51,8 @@ export default async function TrailPage({ params }: { params: Promise<{ slug: st
       )}
 
       <p className="attribution">
-        Trail length {km(t.length_m)} km, as measured from the official route data. Trail data: {t.attribution} Open
-        Government Licence v3.0.
+        Length {km(t.length_m)} km, as measured from the {t.category === "famous-route" ? "OpenStreetMap" : "official"} route
+        data. Trail data: {t.attribution} {licenceName(t.licence)}.
       </p>
     </main>
   );

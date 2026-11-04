@@ -119,7 +119,7 @@ export interface TrailRun {
 }
 
 export interface TrailDetail {
-  trail: TrailSummary & { attribution: string; bbox: [number, number, number, number] };
+  trail: TrailSummary & { attribution: string; licence: string; bbox: [number, number, number, number] };
   runs: TrailRun[];
   geojson: FeatureCollection;
   activities: { id: number; name: string | null; start_time: string | null; covered_m: number }[];
@@ -135,8 +135,8 @@ function parseBox(box: string): [number, number, number, number] {
 export async function trailDetail(userId: number, slug: string): Promise<TrailDetail | null> {
   const summary = (await trailSummaries(userId)).find((t) => t.slug === slug);
   if (!summary) return null;
-  const [meta] = await query<{ attribution: string; bbox: string }>(
-    `SELECT attribution, ST_Extent(geom)::text AS bbox FROM trails WHERE id = $1 GROUP BY attribution`,
+  const [meta] = await query<{ attribution: string; licence: string; bbox: string }>(
+    `SELECT attribution, licence, ST_Extent(geom)::text AS bbox FROM trails WHERE id = $1 GROUP BY attribution, licence`,
     [summary.id],
   );
 
@@ -178,7 +178,7 @@ export async function trailDetail(userId: number, slug: string): Promise<TrailDe
   );
 
   return {
-    trail: { ...summary, attribution: meta.attribution, bbox: parseBox(meta.bbox) },
+    trail: { ...summary, attribution: meta.attribution, licence: meta.licence, bbox: parseBox(meta.bbox) },
     runs: runs.map((r) => ({
       part: r.part, covered: r.covered, from_m: r.from_m, length_m: r.length_m, bbox: parseBox(r.bbox),
     })),
@@ -194,7 +194,14 @@ export async function trailDetail(userId: number, slug: string): Promise<TrailDe
   };
 }
 
+export const LICENCE_NAMES: Record<string, string> = {
+  "OGL-UK-3.0": "Open Government Licence v3.0",
+  "ODbL-1.0": "Open Database Licence (ODbL)",
+};
+export const licenceName = (code: string) => LICENCE_NAMES[code] ?? code;
+
+/** One line per data source in use, e.g. "© Natural England ... Open Government Licence v3.0." */
 export async function attributions(): Promise<string[]> {
-  const rows = await query<{ attribution: string }>(`SELECT DISTINCT attribution FROM trails`);
-  return rows.map((r) => r.attribution);
+  const rows = await query<{ attribution: string; licence: string }>(`SELECT DISTINCT attribution, licence FROM trails ORDER BY licence, attribution`);
+  return rows.map((r) => `${r.attribution} ${licenceName(r.licence)}.`);
 }
