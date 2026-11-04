@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as maplibregl from "maplibre-gl";
 import MapCanvas from "./MapCanvas";
+import { walkedMarkers } from "@/lib/map-markers";
 
 export const COLOURS = { trail: "#c0702a", covered: "#1f8a4c", track: "#2f6fb5" };
 
@@ -24,6 +25,7 @@ export default function OverviewMap() {
           m.addSource("tracks", { type: "geojson", data: data.tracks });
           m.addSource("trails", { type: "geojson", data: data.trails });
           m.addSource("covered", { type: "geojson", data: data.covered });
+          m.addSource("walked-markers", { type: "geojson", data: walkedMarkers(data.covered) });
           m.addLayer({
             id: "tracks", type: "line", source: "tracks",
             paint: { "line-color": COLOURS.track, "line-width": 1.5, "line-opacity": 0.55 },
@@ -37,7 +39,7 @@ export default function OverviewMap() {
             paint: {
               "line-color": COLOURS.trail,
               "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1, 12, 2.5],
-              "line-opacity": 0.6,
+              "line-opacity": 0.45,
             },
           });
           m.addLayer({
@@ -47,18 +49,41 @@ export default function OverviewMap() {
               "line-color": COLOURS.trail,
               "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2.2, 12, 4],
               "line-dasharray": [1.6, 1],
+              "line-opacity": 0.7,
             },
           });
           m.addLayer({
             id: "trails", type: "line", source: "trails",
             filter: ["==", ["get", "category"], "national-trail"],
             layout: { "line-cap": "round" },
-            paint: { "line-color": COLOURS.trail, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 2, 12, 4] },
+            paint: {
+              "line-color": COLOURS.trail,
+              "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.6, 12, 3.5],
+              "line-opacity": 0.75,
+            },
+          });
+          // Walked sections: white outline underneath so they stand out from everything else.
+          m.addLayer({
+            id: "covered-casing", type: "line", source: "covered",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 7, 12, 11] },
           });
           m.addLayer({
             id: "covered", type: "line", source: "covered",
-            layout: { "line-cap": "round" },
-            paint: { "line-color": COLOURS.covered, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 3, 12, 6] },
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": COLOURS.covered, "line-width": ["interpolate", ["linear"], ["zoom"], 5, 4, 12, 7] },
+          });
+          // A dot per walked route, so short sections are visible zoomed out; fades as you zoom in.
+          m.addLayer({
+            id: "walked-markers", type: "circle", source: "walked-markers",
+            paint: {
+              "circle-color": COLOURS.covered,
+              "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 6, 9, 5],
+              "circle-stroke-color": "#ffffff",
+              "circle-stroke-width": 2,
+              "circle-opacity": ["interpolate", ["linear"], ["zoom"], 8, 1, 10, 0],
+              "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 8, 1, 10, 0],
+            },
           });
           // Wide invisible layer makes trails easy to click.
           m.addLayer({
@@ -104,7 +129,7 @@ export default function OverviewMap() {
         }}
       >
         <div className="legend" style={{ margin: 0 }}>
-          <span><i style={{ background: COLOURS.covered }} />Walked</span>
+          <span><i style={{ background: COLOURS.covered, height: 6, boxShadow: "0 0 0 2px #fff" }} />Walked</span>
           <span><i style={{ background: COLOURS.trail }} />Not yet</span>
           <span>
             <i style={{ background: `repeating-linear-gradient(90deg, ${COLOURS.trail} 0 6px, transparent 6px 10px)` }} />

@@ -5,6 +5,7 @@
 // The list of individual walks is optional.
 import { useState } from "react";
 import type { Stats } from "@/lib/stats"; // type only: the stats module uses the database
+import { walkedMarkers } from "@/lib/map-markers";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const monthName = (m: number) => MONTHS[m - 1];
@@ -110,9 +111,21 @@ async function drawUkMap(data: MapData, widthPx: number): Promise<{ url: string;
     }
     ctx.globalAlpha = 1;
   };
-  stroke(data.trails, "#d4995f", 1.4, 0.9); // all routes
-  stroke(data.tracks, "#2f6fb5", 1.6, 0.75); // your tracks
-  stroke(data.covered, "#1f8a4c", 6); // walked sections of routes
+  stroke(data.trails, "#d9ae84", 1.2, 0.85); // all routes, deliberately faint
+  stroke(data.tracks, "#2f6fb5", 1.3, 0.6); // your tracks
+  stroke(data.covered, "#ffffff", 11); // white outline so walked sections stand out
+  stroke(data.covered, "#1f8a4c", 7); // walked sections of routes
+  // A dot per walked route, so even a short section shows at whole-UK scale.
+  for (const f of walkedMarkers(data.covered).features) {
+    const [x, y] = px(f.geometry.coordinates[0], f.geometry.coordinates[1]);
+    ctx.beginPath();
+    ctx.arc(x, y, 18 * s, 0, Math.PI * 2);
+    ctx.fillStyle = "#1f8a4c";
+    ctx.fill();
+    ctx.lineWidth = 5 * s;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+  }
   return { url: canvas.toDataURL("image/png"), aspect };
 }
 
@@ -222,7 +235,7 @@ async function buildPdf(stats: Stats, name: string, includeWalks: boolean, setSt
   doc.setDrawColor(...LINE).setLineWidth(0.2).rect(M, mapY, mapW, mapH);
   const ly = mapY + mapH + 4;
   const legend: [RGB, string, number][] = [
-    [[31, 138, 76], "Routes walked", 1.2], [[212, 153, 95], "Routes not yet walked", 0.5], [[47, 111, 181], "Your tracks", 0.6],
+    [[31, 138, 76], "Routes walked (dot marks each route)", 1.6], [[212, 153, 95], "Routes not yet walked", 0.5], [[47, 111, 181], "Your tracks", 0.6],
   ];
   let lx = M;
   for (const [c, label, lw] of legend) {
